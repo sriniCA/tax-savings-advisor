@@ -101,6 +101,11 @@
                 <option value="MI">Michigan</option>
               </select>
             </div>
+            <div class="form-group full-width obbb-banner" id="senior-banner" style="display:none">
+              <div class="obbb-label">🎉 OBBB Senior Bonus Deduction — You May Qualify!</div>
+              <div class="obbb-sub">Age 65+ gets an extra $6,000 deduction ($12,000 if both spouses qualify). Effective 2025–2028. Phases out above $75K MAGI ($150K joint). Claimed on Schedule 1-A.</div>
+            </div>
+
             <div class="form-group">
               <label for="taxYear">Tax Year</label>
               <select id="taxYear">
@@ -207,6 +212,28 @@
                 <input type="number" id="federalWithheld" placeholder="0" min="0" value="0" />
               </div>
               <span class="hint">W-2 Box 2 — what your employer withheld</span>
+            </div>
+
+            <!-- OBBB NEW DEDUCTIONS -->
+            <div class="form-group full-width obbb-banner">
+              <div class="obbb-label">🏛️ One Big Beautiful Bill (OBBB) — New Deductions for 2025–2028</div>
+              <div class="obbb-sub">Signed into law July 4, 2025 · Claim via new IRS Schedule 1-A · Available whether you itemize or not</div>
+            </div>
+            <div class="form-group">
+              <label for="tipIncome">Qualified Tip Income Received</label>
+              <div class="input-dollar">
+                <span>$</span>
+                <input type="number" id="tipIncome" placeholder="0" min="0" value="0" />
+              </div>
+              <span class="hint">Up to $25,000 deductible. Must be in a tip-customary occupation (servers, drivers, salon, etc.). Phases out above $150K MAGI ($300K joint).</span>
+            </div>
+            <div class="form-group">
+              <label for="overtimePay">Qualified Overtime Pay Received</label>
+              <div class="input-dollar">
+                <span>$</span>
+                <input type="number" id="overtimePay" placeholder="0" min="0" value="0" />
+              </div>
+              <span class="hint">Enter the "half" portion of time-and-a-half only. Max deduction: $12,500 single / $25,000 MFJ. Phases out above $150K ($300K joint).</span>
             </div>
           </div>
           <div class="nav-buttons">
@@ -340,6 +367,20 @@
             <div class="form-group">
               <label for="totalHomeSqft">Total Home Square Footage</label>
               <input type="number" id="totalHomeSqft" placeholder="0" min="0" value="0" />
+            </div>
+
+            <!-- OBBB Auto Loan -->
+            <div class="form-group full-width obbb-banner">
+              <div class="obbb-label">🚗 OBBB New Deduction: Car Loan Interest (2025–2028)</div>
+              <div class="obbb-sub">Interest on new car loans (after Dec 31, 2024) for US-assembled vehicles used personally. Max $10,000. Phases out above $100K MAGI ($200K joint).</div>
+            </div>
+            <div class="form-group">
+              <label for="autoLoanInterest">New Car Loan Interest Paid (2025+)</label>
+              <div class="input-dollar">
+                <span>$</span>
+                <input type="number" id="autoLoanInterest" placeholder="0" min="0" value="0" />
+              </div>
+              <span class="hint">Must be a personal-use vehicle, US final assembly, loan originated after 12/31/2024. Include VIN on return.</span>
             </div>
           </div>
           <div class="nav-buttons">

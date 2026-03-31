@@ -5,7 +5,7 @@
 
 'use strict';
 
-/* ---- 2024 TAX CONSTANTS ---- */
+/* ---- TAX CONSTANTS (2024 / 2025-OBBB / 2026-OBBB official IRS figures) ---- */
 const TAX_DATA = {
   2024: {
     brackets: {
@@ -134,11 +134,12 @@ const TAX_DATA = {
         { min: 626350,  max: Infinity, rate: 0.37 }
       ]
     },
+    // OBBB raised 2025 standard deductions by $750/$1,500/$1,125
     standardDeduction: {
-      single: 15000,
-      mfj:    30000,
-      mfs:    15000,
-      hoh:    22500
+      single: 15750,
+      mfj:    31500,
+      mfs:    15750,
+      hoh:    23625
     },
     ltcgBrackets: {
       single: [
@@ -183,73 +184,73 @@ const TAX_DATA = {
       energyCreditPct: 0.30
     }
   },
-  // 2026 brackets — estimated based on IRS inflation adjustments (~2.5%)
-  // Verify at irs.gov once official figures are published
+  // 2026 — Official IRS figures per OBBB (IR 2025-103, Public Law 119-21)
   2026: {
     brackets: {
       single: [
-        { min: 0,       max: 12200,  rate: 0.10 },
-        { min: 12200,   max: 49650,  rate: 0.12 },
-        { min: 49650,   max: 105950, rate: 0.22 },
-        { min: 105950,  max: 202250, rate: 0.24 },
-        { min: 202250,  max: 256800, rate: 0.32 },
-        { min: 256800,  max: 642100, rate: 0.35 },
-        { min: 642100,  max: Infinity, rate: 0.37 }
+        { min: 0,       max: 12400,  rate: 0.10 },
+        { min: 12400,   max: 50400,  rate: 0.12 },
+        { min: 50400,   max: 105700, rate: 0.22 },
+        { min: 105700,  max: 201775, rate: 0.24 },
+        { min: 201775,  max: 256225, rate: 0.32 },
+        { min: 256225,  max: 640600, rate: 0.35 },
+        { min: 640600,  max: Infinity, rate: 0.37 }
       ],
       mfj: [
-        { min: 0,       max: 24450,  rate: 0.10 },
-        { min: 24450,   max: 99350,  rate: 0.12 },
-        { min: 99350,   max: 211850, rate: 0.22 },
-        { min: 211850,  max: 404450, rate: 0.24 },
-        { min: 404450,  max: 513600, rate: 0.32 },
-        { min: 513600,  max: 770400, rate: 0.35 },
-        { min: 770400,  max: Infinity, rate: 0.37 }
+        { min: 0,       max: 24800,  rate: 0.10 },
+        { min: 24800,   max: 100800, rate: 0.12 },
+        { min: 100800,  max: 211400, rate: 0.22 },
+        { min: 211400,  max: 403550, rate: 0.24 },
+        { min: 403550,  max: 512450, rate: 0.32 },
+        { min: 512450,  max: 768700, rate: 0.35 },
+        { min: 768700,  max: Infinity, rate: 0.37 }
       ],
       mfs: [
-        { min: 0,       max: 12200,  rate: 0.10 },
-        { min: 12200,   max: 49650,  rate: 0.12 },
-        { min: 49650,   max: 105950, rate: 0.22 },
-        { min: 105950,  max: 202250, rate: 0.24 },
-        { min: 202250,  max: 256800, rate: 0.32 },
-        { min: 256800,  max: 385200, rate: 0.35 },
-        { min: 385200,  max: Infinity, rate: 0.37 }
+        { min: 0,       max: 12400,  rate: 0.10 },
+        { min: 12400,   max: 50400,  rate: 0.12 },
+        { min: 50400,   max: 105700, rate: 0.22 },
+        { min: 105700,  max: 201775, rate: 0.24 },
+        { min: 201775,  max: 256225, rate: 0.32 },
+        { min: 256225,  max: 384350, rate: 0.35 },
+        { min: 384350,  max: Infinity, rate: 0.37 }
       ],
       hoh: [
-        { min: 0,       max: 17450,  rate: 0.10 },
-        { min: 17450,   max: 66500,  rate: 0.12 },
-        { min: 66500,   max: 105950, rate: 0.22 },
-        { min: 105950,  max: 202250, rate: 0.24 },
-        { min: 202250,  max: 256800, rate: 0.32 },
-        { min: 256800,  max: 642100, rate: 0.35 },
-        { min: 642100,  max: Infinity, rate: 0.37 }
+        { min: 0,       max: 17700,  rate: 0.10 },
+        { min: 17700,   max: 67300,  rate: 0.12 },
+        { min: 67300,   max: 107550, rate: 0.22 },
+        { min: 107550,  max: 201775, rate: 0.24 },
+        { min: 201775,  max: 256225, rate: 0.32 },
+        { min: 256225,  max: 640600, rate: 0.35 },
+        { min: 640600,  max: Infinity, rate: 0.37 }
       ]
     },
+    // OBBB official 2026 standard deductions (IRS IR 2025-103)
     standardDeduction: {
-      single: 15700,
-      mfj:    31400,
-      mfs:    15700,
-      hoh:    23550
+      single: 16100,
+      mfj:    32200,
+      mfs:    16100,
+      hoh:    24150
     },
     ltcgBrackets: {
       single: [
         { min: 0,       max: 49550,  rate: 0.00 },
-        { min: 49550,   max: 547000, rate: 0.15 },
-        { min: 547000,  max: Infinity, rate: 0.20 }
+        { min: 49550,   max: 547050, rate: 0.15 },
+        { min: 547050,  max: Infinity, rate: 0.20 }
       ],
       mfj: [
         { min: 0,       max: 99100,  rate: 0.00 },
-        { min: 99100,   max: 615000, rate: 0.15 },
-        { min: 615000,  max: Infinity, rate: 0.20 }
+        { min: 99100,   max: 615050, rate: 0.15 },
+        { min: 615050,  max: Infinity, rate: 0.20 }
       ],
       hoh: [
         { min: 0,       max: 66350,  rate: 0.00 },
-        { min: 66350,   max: 580850, rate: 0.15 },
-        { min: 580850,  max: Infinity, rate: 0.20 }
+        { min: 66350,   max: 581050, rate: 0.15 },
+        { min: 581050,  max: Infinity, rate: 0.20 }
       ],
       mfs: [
         { min: 0,       max: 49550,  rate: 0.00 },
-        { min: 49550,   max: 307500, rate: 0.15 },
-        { min: 307500,  max: Infinity, rate: 0.20 }
+        { min: 49550,   max: 307525, rate: 0.15 },
+        { min: 307525,  max: Infinity, rate: 0.20 }
       ]
     },
     limits: {
@@ -268,7 +269,7 @@ const TAX_DATA = {
       aoCredit: 2500,
       llCredit: 2000,
       educatorExpenses: 300,
-      adoptionCreditMax: 17500,
+      adoptionCreditMax: 17670,
       capitalLossLimit: 3000,
       energyCreditPct: 0.30
     }
@@ -280,6 +281,23 @@ const fmt = (n) => '$' + Math.round(Math.abs(n)).toLocaleString();
 const fmtPct = (n) => (n * 100).toFixed(1) + '%';
 const clamp = (n, lo, hi) => Math.min(Math.max(n, lo), hi);
 const n = (id) => parseFloat(document.getElementById(id)?.value) || 0;
+
+/* ---- OBBB PHASE-OUT CALCULATOR ---- */
+function obbbPhaseout(deduction, agi, filingStatus, phaseoutStartSingle, phaseoutStartJoint) {
+  const phaseoutStart = (filingStatus === 'mfj') ? phaseoutStartJoint : phaseoutStartSingle;
+  const phaseoutEnd   = phaseoutStart + 75000;
+  if (agi <= phaseoutStart) return deduction;
+  if (agi >= phaseoutEnd)   return 0;
+  return deduction * (1 - (agi - phaseoutStart) / 75000);
+}
+
+/* Show/hide senior banner based on age input */
+function updateSeniorBanner() {
+  const age = parseFloat(document.getElementById('taxpayerAge')?.value) || 0;
+  const spouseAge = parseFloat(document.getElementById('spouseAge')?.value) || 0;
+  const banner = document.getElementById('senior-banner');
+  if (banner) banner.style.display = (age >= 65 || spouseAge >= 65) ? '' : 'none';
+}
 const radio = (name) => document.querySelector(`input[name="${name}"]:checked`)?.value || '';
 
 /* ---- STEP NAVIGATION ---- */
@@ -454,6 +472,11 @@ function calculateTaxes() {
   const evPurchased         = radio('evPurchase') === 'yes';
   const adoptionExpenses    = n('adoptionExpenses');
 
+  // --- OBBB NEW DEDUCTIONS (2025–2028) ---
+  const tipIncome           = n('tipIncome');
+  const overtimePay         = n('overtimePay');
+  const autoLoanInterest    = n('autoLoanInterest');
+
   // --- GROSS INCOME ---
   const ordinaryIncome = w2Income + spouseW2 + seNet + stcg + Math.max(0, rentalNet) + otherIncome - investmentLossLimit;
 
@@ -479,6 +502,32 @@ function calculateTaxes() {
   // --- STUDENT LOAN (depends on AGI) ---
   const studentLoanDeduct = calcStudentLoanDeduction(studentLoanInterest, agi, filingStatus, lim);
 
+  // --- OBBB DEDUCTIONS (Schedule 1-A, 2025–2028 only, phase out with MAGI) ---
+  const obbbApplies = taxYear >= 2025 && taxYear <= 2028;
+
+  // Tips deduction — max $25,000, phase-out $150K single / $300K joint
+  const rawTipDeduction = obbbApplies ? Math.min(tipIncome, 25000) : 0;
+  const tipDeduction = obbbApplies ? obbbPhaseout(rawTipDeduction, agi, filingStatus, 150000, 300000) : 0;
+
+  // Overtime deduction — max $12,500 single / $25,000 joint, phase-out $150K/$300K
+  const overtimeMax = (filingStatus === 'mfj') ? 25000 : 12500;
+  const rawOvertimeDeduction = obbbApplies ? Math.min(overtimePay, overtimeMax) : 0;
+  const overtimeDeduction = obbbApplies ? obbbPhaseout(rawOvertimeDeduction, agi, filingStatus, 150000, 300000) : 0;
+
+  // Auto loan interest deduction — max $10,000, phase-out $100K single / $200K joint
+  const rawAutoDeduction = obbbApplies ? Math.min(autoLoanInterest, 10000) : 0;
+  const autoLoanDeduction = obbbApplies ? obbbPhaseout(rawAutoDeduction, agi, filingStatus, 100000, 200000) : 0;
+
+  // Senior bonus deduction — $6,000/person age 65+, phase-out $75K single / $150K joint
+  let seniorBonusGross = 0;
+  if (obbbApplies) {
+    if (taxpayerAge >= 65) seniorBonusGross += 6000;
+    if (spouseAge >= 65 && (filingStatus === 'mfj')) seniorBonusGross += 6000;
+  }
+  const seniorDeduction = obbbApplies ? obbbPhaseout(seniorBonusGross, agi, filingStatus, 75000, 150000) : 0;
+
+  const totalOBBBDeductions = tipDeduction + overtimeDeduction + autoLoanDeduction + seniorDeduction;
+
   // --- ITEMIZED DEDUCTIONS ---
   const medicalThreshold  = agi * 0.075;
   const medicalDeductible = Math.max(0, n('medicalExpenses') - medicalThreshold);
@@ -496,8 +545,9 @@ function calculateTaxes() {
   const chosenDeduction   = Math.max(standardDeduction, itemizedTotal);
 
   // --- TAXABLE INCOME ---
-  const taxableIncomeFull = Math.max(0, agi - chosenDeduction - studentLoanDeduct + (ltcg + dividends));
-  const taxableOrdinary   = Math.max(0, agiNoLTCG - chosenDeduction - studentLoanDeduct);
+  // OBBB deductions reduce taxable income after the standard/itemized deduction
+  const taxableIncomeFull = Math.max(0, agi - chosenDeduction - studentLoanDeduct - totalOBBBDeductions + (ltcg + dividends));
+  const taxableOrdinary   = Math.max(0, agiNoLTCG - chosenDeduction - studentLoanDeduct - totalOBBBDeductions);
   const taxableLTCG       = ltcg + dividends;
 
   // --- ORDINARY TAX ---
@@ -693,6 +743,22 @@ function calculateTaxes() {
     savingsItems.push({ icon: '🧾', title: 'Business Expense Deductions', desc: `${fmt(seExpenses)} in self-employment expenses`, amount: fmt(seExpenses * marginalRate) + ' saved', type: 'used' });
   }
 
+  // --- OBBB SAVINGS ITEMS ---
+  if (obbbApplies) {
+    if (tipDeduction > 0) {
+      savingsItems.push({ icon: '🏛️', title: 'OBBB: No Tax on Tips (Schedule 1-A)', desc: `${fmt(tipDeduction)} in qualified tip income deducted. Signed into law July 4, 2025.`, amount: fmt(tipDeduction * marginalRate) + ' saved', type: 'used' });
+    }
+    if (overtimeDeduction > 0) {
+      savingsItems.push({ icon: '⏰', title: 'OBBB: No Tax on Overtime (Schedule 1-A)', desc: `${fmt(overtimeDeduction)} overtime "half-pay" deducted. Max $12,500 single / $25,000 MFJ.`, amount: fmt(overtimeDeduction * marginalRate) + ' saved', type: 'used' });
+    }
+    if (autoLoanDeduction > 0) {
+      savingsItems.push({ icon: '🚗', title: 'OBBB: Car Loan Interest (Schedule 1-A)', desc: `${fmt(autoLoanDeduction)} deducted on US-assembled vehicle loan (max $10,000).`, amount: fmt(autoLoanDeduction * marginalRate) + ' saved', type: 'used' });
+    }
+    if (seniorDeduction > 0) {
+      savingsItems.push({ icon: '👴', title: 'OBBB: Senior Bonus Deduction (Schedule 1-A)', desc: `${fmt(seniorDeduction)} extra deduction for age 65+ taxpayer(s). Valid 2025–2028.`, amount: fmt(seniorDeduction * marginalRate) + ' saved', type: 'used' });
+    }
+  }
+
   const savingsContainer = document.getElementById('savings-opportunities');
   if (savingsItems.length > 0) {
     savingsContainer.innerHTML = `<div class="savings-grid">${savingsItems.map(item => `
@@ -758,6 +824,31 @@ function calculateTaxes() {
     untapped.push({ icon: '💫', title: `Saver's Credit (Retirement)`, desc: `Your income may qualify for the Retirement Savings Contributions Credit (Saver's Credit) — worth 10–50% of your retirement contributions. Check Form 8880.`, save: 'Up to $1,000 credit' });
   }
 
+  // --- OBBB UNTAPPED OPPORTUNITIES ---
+  if (obbbApplies) {
+    if (tipIncome === 0) {
+      untapped.push({ icon: '🏛️', title: `OBBB: Did You Receive Tips? Deduct Up to $25,000`, desc: `The One Big Beautiful Bill (signed July 4, 2025) lets service workers — servers, bartenders, drivers, salon workers, valets and more — deduct up to $25,000 in tip income via Schedule 1-A. Enter your tip income to calculate savings.`, save: 'Up to ' + fmt(25000 * marginalRate) + ' savings' });
+    }
+    if (overtimePay === 0 && (w2Income + spouseW2) > 50000) {
+      untapped.push({ icon: '⏰', title: `OBBB: Did You Work Overtime? Deduct Up to $12,500`, desc: `If you were paid time-and-a-half for overtime in 2025–2028, the extra "half" portion is deductible — up to $12,500 (or $25,000 if married filing jointly) via Schedule 1-A. Enter your overtime amount.`, save: 'Up to ' + fmt(12500 * marginalRate) + ' savings' });
+    }
+    if (autoLoanInterest === 0) {
+      untapped.push({ icon: '🚗', title: `OBBB: New Car Loan? Deduct Up to $10,000 in Interest`, desc: `Purchased a new US-assembled vehicle after Dec 31, 2024? Interest on the loan is now deductible (up to $10,000) via Schedule 1-A — whether you itemize or not. Phases out above $100K MAGI ($200K joint). Include your VIN on the return.`, save: 'Up to ' + fmt(10000 * marginalRate) + ' savings' });
+    }
+    if (seniorBonusGross === 0 && (taxpayerAge >= 60 || spouseAge >= 60)) {
+      const approaching = taxpayerAge >= 60 || spouseAge >= 60;
+      if (approaching && (taxpayerAge < 65 && (spouseAge < 65 || !spouseAge))) {
+        untapped.push({ icon: '🎂', title: `Turning 65? Senior Bonus Deduction Worth $6,000 Awaits`, desc: `Once you or your spouse turns 65, you qualify for an extra $6,000 deduction per eligible senior ($12,000 if both qualify) — valid 2025–2028 via Schedule 1-A. Plan ahead so you don't miss it.`, save: fmt(6000 * marginalRate) + ' savings at 65' });
+      }
+    }
+    if (seniorBonusGross > 0 && seniorDeduction < seniorBonusGross) {
+      untapped.push({ icon: '⚠️', title: `Senior Deduction Partially Phased Out`, desc: `Your income is partially above the $75,000 ($150,000 joint) threshold for the Senior Bonus Deduction. Consider reducing MAGI before year-end via 401(k) or IRA contributions to maximize this deduction.`, save: fmt((seniorBonusGross - seniorDeduction) * marginalRate) + ' recoverable' });
+    }
+    if (tipIncome > 0 && tipDeduction < rawTipDeduction) {
+      untapped.push({ icon: '⚠️', title: `Tip Deduction Partially Phased Out`, desc: `Your income exceeds the $150,000 ($300,000 joint) threshold, reducing your tip deduction. Lower your MAGI via 401(k), HSA, or IRA contributions to recover the full ${fmt(rawTipDeduction)} deduction.`, save: fmt((rawTipDeduction - tipDeduction) * marginalRate) + ' recoverable' });
+    }
+  }
+
   const untappedContainer = document.getElementById('untapped-savings');
   if (untapped.length > 0) {
     untappedContainer.innerHTML = `<div class="untapped-list">${untapped.map(item => `
@@ -807,6 +898,14 @@ function calculateTaxes() {
 
   if (ltcg > 0) {
     actions.push({ num: 8, icon: '⏳', title: `Hold Investments 1+ Year (Long-Term)`, desc: `Assets sold after more than 12 months qualify for long-term capital gains rates (0%, 15%, or 20%) vs. ordinary income rates (up to 37%) for short-term gains. Your marginal rate is ${fmtPct(marginalRate)} — plan your sales carefully.`, deadline: 'Ongoing', save: `Rate difference: ${fmtPct(marginalRate)} vs. 15–20%` });
+  }
+
+  // OBBB-specific next-year actions
+  if (obbbApplies) {
+    actions.push({ num: actions.length + 1, icon: '🏛️', title: `File Schedule 1-A to Claim OBBB Deductions`, desc: `The One Big Beautiful Bill created a brand-new IRS form — Schedule 1-A — required to claim tips, overtime, car loan interest, and senior deductions. Without this form you forfeit these savings. Ensure your tax software includes it.`, deadline: 'Required for ' + nextYear + ' filing', save: 'Up to ' + fmt((25000 + overtimeMax + 10000) * marginalRate) + ' in new deductions' });
+    if (autoLoanInterest === 0) {
+      actions.push({ num: actions.length + 1, icon: '🚘', title: `Buy a US-Assembled Vehicle — Deduct the Interest`, desc: `If you plan to buy a car, choose a US-assembled model (check VIN at NHTSA) and finance it — the interest on a new personal-use vehicle loan is deductible up to $10,000/year through 2028 (OBBB Section 70203). Buy before Dec 31, ${nextYear}.`, deadline: 'By Dec 31, ' + nextYear, save: 'Up to ' + fmt(10000 * marginalRate) + ' per year' });
+    }
   }
 
   actions.push({ num: actions.length + 1, icon: '👩‍💼', title: `Schedule a CPA Review in Q4 ${nextYear}`, desc: `Meet with a tax professional in October–November ${nextYear} — before the year ends — when you still have time to act on strategies. Year-end tax planning can reduce your bill by thousands. Don't wait until April.`, deadline: 'October/November ' + nextYear, save: 'Proactive savings opportunity' });
@@ -863,7 +962,7 @@ function calculateTaxes() {
       <strong>LTCG/Qualified Dividends:</strong> ${fmt(taxableLTCG)} &nbsp;|&nbsp;
       <strong>Self-Employment Tax:</strong> ${fmt(seTax)} &nbsp;|&nbsp;
       <strong>Total Credits Applied:</strong> ${fmt(totalCredits)}
-      ${taxYear === 2026 ? '<br><span style="color:var(--warning);font-weight:600;">⚠️ 2026 brackets are estimated — verify at irs.gov once official figures are published.</span>' : ''}
+      ${taxYear === 2026 ? '<br><span style="color:var(--success);font-weight:600;">✓ 2026 brackets per official IRS IR 2025-103 (OBBB, Public Law 119-21)</span>' : ''}
     </div>
   `;
 }
@@ -877,5 +976,10 @@ document.addEventListener('DOMContentLoaded', () => {
         i.closest('.radio-card')?.classList.toggle('selected', i.checked);
       });
     });
+  });
+
+  // Show senior banner dynamically when age 65+ is entered
+  ['taxpayerAge', 'spouseAge'].forEach(id => {
+    document.getElementById(id)?.addEventListener('input', updateSeniorBanner);
   });
 });
