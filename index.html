@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Tax Savings Advisor 2024</title>
+  <title>Tax Savings Advisor 2025</title>
   <link rel="stylesheet" href="style.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -18,7 +18,7 @@
           <span class="logo-icon">💰</span>
           <div>
             <h1>Tax Savings Advisor</h1>
-            <p>2024 Tax Year · Find every dollar you're owed back</p>
+            <p>2025 Tax Year · Find every dollar you're owed back</p>
           </div>
         </div>
         <div class="header-badge">Free &amp; Private — No data leaves your browser</div>
@@ -104,8 +104,9 @@
             <div class="form-group">
               <label for="taxYear">Tax Year</label>
               <select id="taxYear">
-                <option value="2024" selected>2024 (Filing in 2025)</option>
-                <option value="2025">2025 (Planning Ahead)</option>
+                <option value="2024">2024 (Prior Year — filed Apr 2025)</option>
+                <option value="2025" selected>2025 (Current — filing by Apr 2026)</option>
+                <option value="2026">2026 (Planning Ahead)</option>
               </select>
             </div>
           </div>
@@ -569,7 +570,7 @@
 
         <!-- SUMMARY CARDS -->
         <div class="results-header">
-          <h2>Your 2024 Tax Savings Analysis</h2>
+          <h2 id="results-title">Your 2025 Tax Savings Analysis</h2>
           <p>Based on the information you provided</p>
           <button class="btn-secondary btn-sm" onclick="editForm()">← Edit My Info</button>
         </div>

@@ -1,6 +1,6 @@
 /* =========================================================
    TAX SAVINGS ADVISOR — CALCULATION ENGINE
-   Tax Year 2024 (Filing 2025)
+   Tax Years 2024, 2025, 2026
    ========================================================= */
 
 'use strict';
@@ -179,6 +179,96 @@ const TAX_DATA = {
       llCredit: 2000,
       educatorExpenses: 300,
       adoptionCreditMax: 17280,
+      capitalLossLimit: 3000,
+      energyCreditPct: 0.30
+    }
+  },
+  // 2026 brackets — estimated based on IRS inflation adjustments (~2.5%)
+  // Verify at irs.gov once official figures are published
+  2026: {
+    brackets: {
+      single: [
+        { min: 0,       max: 12200,  rate: 0.10 },
+        { min: 12200,   max: 49650,  rate: 0.12 },
+        { min: 49650,   max: 105950, rate: 0.22 },
+        { min: 105950,  max: 202250, rate: 0.24 },
+        { min: 202250,  max: 256800, rate: 0.32 },
+        { min: 256800,  max: 642100, rate: 0.35 },
+        { min: 642100,  max: Infinity, rate: 0.37 }
+      ],
+      mfj: [
+        { min: 0,       max: 24450,  rate: 0.10 },
+        { min: 24450,   max: 99350,  rate: 0.12 },
+        { min: 99350,   max: 211850, rate: 0.22 },
+        { min: 211850,  max: 404450, rate: 0.24 },
+        { min: 404450,  max: 513600, rate: 0.32 },
+        { min: 513600,  max: 770400, rate: 0.35 },
+        { min: 770400,  max: Infinity, rate: 0.37 }
+      ],
+      mfs: [
+        { min: 0,       max: 12200,  rate: 0.10 },
+        { min: 12200,   max: 49650,  rate: 0.12 },
+        { min: 49650,   max: 105950, rate: 0.22 },
+        { min: 105950,  max: 202250, rate: 0.24 },
+        { min: 202250,  max: 256800, rate: 0.32 },
+        { min: 256800,  max: 385200, rate: 0.35 },
+        { min: 385200,  max: Infinity, rate: 0.37 }
+      ],
+      hoh: [
+        { min: 0,       max: 17450,  rate: 0.10 },
+        { min: 17450,   max: 66500,  rate: 0.12 },
+        { min: 66500,   max: 105950, rate: 0.22 },
+        { min: 105950,  max: 202250, rate: 0.24 },
+        { min: 202250,  max: 256800, rate: 0.32 },
+        { min: 256800,  max: 642100, rate: 0.35 },
+        { min: 642100,  max: Infinity, rate: 0.37 }
+      ]
+    },
+    standardDeduction: {
+      single: 15700,
+      mfj:    31400,
+      mfs:    15700,
+      hoh:    23550
+    },
+    ltcgBrackets: {
+      single: [
+        { min: 0,       max: 49550,  rate: 0.00 },
+        { min: 49550,   max: 547000, rate: 0.15 },
+        { min: 547000,  max: Infinity, rate: 0.20 }
+      ],
+      mfj: [
+        { min: 0,       max: 99100,  rate: 0.00 },
+        { min: 99100,   max: 615000, rate: 0.15 },
+        { min: 615000,  max: Infinity, rate: 0.20 }
+      ],
+      hoh: [
+        { min: 0,       max: 66350,  rate: 0.00 },
+        { min: 66350,   max: 580850, rate: 0.15 },
+        { min: 580850,  max: Infinity, rate: 0.20 }
+      ],
+      mfs: [
+        { min: 0,       max: 49550,  rate: 0.00 },
+        { min: 49550,   max: 307500, rate: 0.15 },
+        { min: 307500,  max: Infinity, rate: 0.20 }
+      ]
+    },
+    limits: {
+      k401: { under50: 24000, over50: 31500 },
+      ira:  { under50: 7500,  over50: 8500  },
+      sep:  { max: 71000, pct: 0.25 },
+      hsa:  { self: 4400, family: 8750 },
+      fsa:  { healthcare: 3350, dependentCare: 5000 },
+      studentLoanInterest: 2500,
+      saltCap: 10000,
+      childTaxCredit: 2000,
+      otherDependentCredit: 500,
+      childCareExpenseCap1: 3000,
+      childCareExpenseCap2: 6000,
+      childCareCreditPct: 0.20,
+      aoCredit: 2500,
+      llCredit: 2000,
+      educatorExpenses: 300,
+      adoptionCreditMax: 17500,
       capitalLossLimit: 3000,
       energyCreditPct: 0.30
     }
@@ -461,6 +551,13 @@ function calculateTaxes() {
   resultsEl.classList.remove('hidden');
   resultsEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
+  // Update results title to reflect selected tax year
+  const titleEl = document.getElementById('results-title');
+  if (titleEl) {
+    const yearLabel = taxYear === 2026 ? `${taxYear} Tax Savings Plan (Estimated)` : `${taxYear} Tax Savings Analysis`;
+    titleEl.textContent = `Your ${yearLabel}`;
+  }
+
   // --- SUMMARY CARDS ---
   document.getElementById('summary-cards').innerHTML = `
     <div class="summary-card blue">
@@ -679,8 +776,8 @@ function calculateTaxes() {
 
   // --- NEXT YEAR ACTION PLAN ---
   const actions = [];
-  const nextYear = taxYear === 2024 ? 2025 : 2026;
-  const nextData = TAX_DATA[Math.min(nextYear, 2025)];
+  const nextYear = taxYear + 1;
+  const nextData = TAX_DATA[Math.min(nextYear, 2026)];
   const nextLim  = nextData.limits;
   const nextK401 = taxpayerAge >= 49 ? nextLim.k401.over50 : nextLim.k401.under50;
   const nextIRA  = taxpayerAge >= 49 ? nextLim.ira.over50  : nextLim.ira.under50;
@@ -766,6 +863,7 @@ function calculateTaxes() {
       <strong>LTCG/Qualified Dividends:</strong> ${fmt(taxableLTCG)} &nbsp;|&nbsp;
       <strong>Self-Employment Tax:</strong> ${fmt(seTax)} &nbsp;|&nbsp;
       <strong>Total Credits Applied:</strong> ${fmt(totalCredits)}
+      ${taxYear === 2026 ? '<br><span style="color:var(--warning);font-weight:600;">⚠️ 2026 brackets are estimated — verify at irs.gov once official figures are published.</span>' : ''}
     </div>
   `;
 }
