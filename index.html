@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tax Savings Advisor 2024</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <div id="app">
+
+    <!-- HEADER -->
+    <header class="app-header">
+      <div class="header-inner">
+        <div class="logo">
+          <span class="logo-icon">💰</span>
+          <div>
+            <h1>Tax Savings Advisor</h1>
+            <p>2024 Tax Year · Find every dollar you're owed back</p>
+          </div>
+        </div>
+        <div class="header-badge">Free &amp; Private — No data leaves your browser</div>
+      </div>
+    </header>
+
+    <!-- MAIN FORM -->
+    <main class="main-content" id="form-section">
+      <div class="container">
+
+        <!-- PROGRESS BAR -->
+        <div class="progress-bar-wrap">
+          <div class="progress-steps">
+            <div class="step active" data-step="1"><span>1</span> Personal</div>
+            <div class="step" data-step="2"><span>2</span> Income</div>
+            <div class="step" data-step="3"><span>3</span> Dependents</div>
+            <div class="step" data-step="4"><span>4</span> Home</div>
+            <div class="step" data-step="5"><span>5</span> Retirement</div>
+            <div class="step" data-step="6"><span>6</span> Health</div>
+            <div class="step" data-step="7"><span>7</span> Other</div>
+          </div>
+        </div>
+
+        <!-- STEP 1: PERSONAL INFO -->
+        <section class="form-card active-section" id="section-1">
+          <div class="section-header">
+            <div class="section-icon">👤</div>
+            <div>
+              <h2>Personal Information</h2>
+              <p>Your filing status and basic details shape everything.</p>
+            </div>
+          </div>
+          <div class="form-grid">
+            <div class="form-group full-width">
+              <label>Filing Status</label>
+              <div class="radio-card-group" id="filing-status-group">
+                <label class="radio-card selected">
+                  <input type="radio" name="filingStatus" value="single" checked />
+                  <span class="card-icon">🧑</span>
+                  <span>Single</span>
+                </label>
+                <label class="radio-card">
+                  <input type="radio" name="filingStatus" value="mfj" />
+                  <span class="card-icon">👫</span>
+                  <span>Married Filing Jointly</span>
+                </label>
+                <label class="radio-card">
+                  <input type="radio" name="filingStatus" value="mfs" />
+                  <span class="card-icon">👤👤</span>
+                  <span>Married Filing Separately</span>
+                </label>
+                <label class="radio-card">
+                  <input type="radio" name="filingStatus" value="hoh" />
+                  <span class="card-icon">🏠</span>
+                  <span>Head of Household</span>
+                </label>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="taxpayerAge">Your Age</label>
+              <input type="number" id="taxpayerAge" placeholder="e.g. 35" min="18" max="100" value="35" />
+              <span class="hint">Age 50+ unlocks catch-up contributions</span>
+            </div>
+            <div class="form-group">
+              <label for="spouseAge">Spouse Age <span class="optional">(if applicable)</span></label>
+              <input type="number" id="spouseAge" placeholder="e.g. 33" min="18" max="100" />
+            </div>
+            <div class="form-group">
+              <label for="state">State of Residence</label>
+              <select id="state">
+                <option value="other">Other / Unknown</option>
+                <option value="no-income-tax">No State Income Tax (TX, FL, NV, WA, WY, SD, AK)</option>
+                <option value="CA">California</option>
+                <option value="NY">New York</option>
+                <option value="IL">Illinois</option>
+                <option value="PA">Pennsylvania</option>
+                <option value="OH">Ohio</option>
+                <option value="GA">Georgia</option>
+                <option value="NC">North Carolina</option>
+                <option value="MI">Michigan</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="taxYear">Tax Year</label>
+              <select id="taxYear">
+                <option value="2024" selected>2024 (Filing in 2025)</option>
+                <option value="2025">2025 (Planning Ahead)</option>
+              </select>
+            </div>
+          </div>
+          <div class="nav-buttons">
+            <button class="btn-primary" onclick="goToStep(2)">Next: Income →</button>
+          </div>
+        </section>
+
+        <!-- STEP 2: INCOME -->
+        <section class="form-card" id="section-2">
+          <div class="section-header">
+            <div class="section-icon">💼</div>
+            <div>
+              <h2>Income Information</h2>
+              <p>Enter all sources of income for the most accurate analysis.</p>
+            </div>
+          </div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="w2Income">W-2 Wages (Box 1)</label>
+              <div class="input-dollar">
+                <span>$</span>
+                <input type="number" id="w2Income" placeholder="0" min="0" value="0" />
+              </div>
+              <span class="hint">Total wages from your W-2 form, Box 1</span>
+            </div>
+            <div class="form-group">
+              <label for="spouseW2">Spouse W-2 Wages <span class="optional">(if applicable)</span></label>
+              <div class="input-dollar">
+                <span>$</span>
+                <input type="number" id="spouseW2" placeholder="0" min="0" value="0" />
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="selfEmploymentIncome">Self-Employment / 1099 Income</label>
+              <div class="input-dollar">
+                <span>$</span>
+                <input type="number" id="selfEmploymentIncome" placeholder="0" min="0" value="0" />
+              </div>
+              <span class="hint">Freelance, contract, gig work</span>
+            </div>
+            <div class="form-group">
+              <label for="selfEmploymentExpenses">Self-Employment Business Expenses</label>
+              <div class="input-dollar">
+                <span>$</span>
+                <input type="number" id="selfEmploymentExpenses" placeholder="0" min="0" value="0" />
+              </div>
+              <span class="hint">Home office, equipment, mileage, etc.</span>
+            </div>
+            <div class="form-group">
+              <label for="rentalIncome">Rental Income</label>
+              <div class="input-dollar">
+                <span>$</span>
+                <input type="number" id="rentalIncome" placeholder="0" min="0" value="0" />
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="rentalExpenses">Rental Property Expenses</label>
+              <div class="input-dollar">
+                <span>$</span>
+                <input type="number" id="rentalExpenses" placeholder="0" min="0" value="0" />
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="longTermCapGains">Long-Term Capital Gains</label>
+              <div class="input-dollar">
+                <span>$</span>
+                <input type="number" id="longTermCapGains" placeholder="0" min="0" value="0" />
+              </div>
+              <span class="hint">Assets held more than 1 year</span>
+            </div>
+            <div class="form-group">
+              <label for="shortTermCapGains">Short-Term Capital Gains</label>
+              <div class="input-dollar">
+                <span>$</span>
+                <input type="number" id="shortTermCapGains" placeholder="0" min="0" value="0" />
+              </div>
+              <span class="hint">Assets held less than 1 year (taxed as ordinary income)</span>
+            </div>
+            <div class="form-group">
+              <label for="dividends">Qualified Dividends</label>
+              <div class="input-dollar">
+                <span>$</span>
+                <input type="number" id="dividends" placeholder="0" min="0" value="0" />
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="otherIncome">Other Income (Interest, Alimony, etc.)</label>
+              <div class="input-dollar">
+                <span>$</span>
+                <input type="number" id="otherIncome" placeholder="0" min="0" value="0" />
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="federalWithheld">Federal Tax Already Withheld</label>
+              <div class="input-dollar">
+                <span>$</span>
+                <input type="number" id="federalWithheld" placeholder="0" min="0" value="0" />
+              </div>
+              <span class="hint">W-2 Box 2 — what your employer withheld</span>
+            </div>
+          </div>
+          <div class="nav-buttons">
+            <button class="btn-secondary" onclick="goToStep(1)">← Back</button>
+            <button class="btn-primary" onclick="goToStep(3)">Next: Dependents →</button>
+          </div>
+        </section>
+
+        <!-- STEP 3: DEPENDENTS -->
+        <section class="form-card" id="section-3">
+          <div class="section-header">
+            <div class="section-icon">👨‍👩‍👧‍👦</div>
+            <div>
+              <h2>Dependents</h2>
+              <p>Children and qualifying dependents unlock significant credits.</p>
+            </div>
+          </div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="numChildrenUnder17">Children Under Age 17</label>
+              <input type="number" id="numChildrenUnder17" placeholder="0" min="0" max="20" value="0" />
+              <span class="hint">Eligible for $2,000 Child Tax Credit each</span>
+            </div>
+            <div class="form-group">
+              <label for="numChildrenCollege">Children in College (17-23)</label>
+              <input type="number" id="numChildrenCollege" placeholder="0" min="0" max="10" value="0" />
+              <span class="hint">May qualify for American Opportunity Credit</span>
+            </div>
+            <div class="form-group">
+              <label for="numOtherDependents">Other Qualifying Dependents</label>
+              <input type="number" id="numOtherDependents" placeholder="0" min="0" max="10" value="0" />
+              <span class="hint">Elderly parents, other relatives — $500 credit each</span>
+            </div>
+            <div class="form-group">
+              <label for="childcareExpenses">Child/Dependent Care Expenses</label>
+              <div class="input-dollar">
+                <span>$</span>
+                <input type="number" id="childcareExpenses" placeholder="0" min="0" value="0" />
+              </div>
+              <span class="hint">Daycare, after-school, summer day camp</span>
+            </div>
+            <div class="form-group">
+              <label for="dependentCarefsaContrib">Dependent Care FSA Contributions</label>
+              <div class="input-dollar">
+                <span>$</span>
+                <input type="number" id="dependentCarefsaContrib" placeholder="0" min="0" max="5000" value="0" />
+              </div>
+              <span class="hint">Max $5,000/year through employer. Reduces taxable income.</span>
+            </div>
+            <div class="form-group">
+              <label for="tuitionPaid">College Tuition &amp; Fees Paid</label>
+              <div class="input-dollar">
+                <span>$</span>
+                <input type="number" id="tuitionPaid" placeholder="0" min="0" value="0" />
+              </div>
+              <span class="hint">For American Opportunity or Lifetime Learning Credit</span>
+            </div>
+          </div>
+          <div class="nav-buttons">
+            <button class="btn-secondary" onclick="goToStep(2)">← Back</button>
+            <button class="btn-primary" onclick="goToStep(4)">Next: Home →</button>
+          </div>
+        </section>
+
+        <!-- STEP 4: HOME / MORTGAGE -->
+        <section class="form-card" id="section-4">
+          <div class="section-header">
+            <div class="section-icon">🏠</div>
+            <div>
+              <h2>Home &amp; Mortgage</h2>
+              <p>Homeownership offers some of the largest deductions available.</p>
+            </div>
+          </div>
+          <div class="form-grid">
+            <div class="form-group full-width">
+              <label>Do you own a home?</label>
+              <div class="toggle-group">
+                <label class="toggle-label">
+                  <input type="radio" name="ownsHome" value="yes" id="ownsHomeYes" />
+                  <span>Yes</span>
+                </label>
+                <label class="toggle-label">
+                  <input type="radio" name="ownsHome" value="no" id="ownsHomeNo" checked />
+                  <span>No</span>
+                </label>
+              </div>
+            </div>
+            <div class="form-group" id="mortgageSection">
+              <label for="mortgageInterest">Mortgage Interest Paid (Form 1098)</label>
+              <div class="input-dollar">
+                <span>$</span>
+                <input type="number" id="mortgageInterest" placeholder="0" min="0" value="0" />
+              </div>
+              <span class="hint">Deductible on loans up to $750,000</span>
+            </div>
+            <div class="form-group">
+              <label for="propertyTax">Property Taxes Paid</label>
+              <div class="input-dollar">
+                <span>$</span>
+                <input type="number" id="propertyTax" placeholder="0" min="0" value="0" />
+              </div>
+              <span class="hint">Combined SALT deduction capped at $10,000</span>
+            </div>
+            <div class="form-group">
+              <label for="stateTaxPaid">State &amp; Local Income Taxes Paid</label>
+              <div class="input-dollar">
+                <span>$</span>
+                <input type="number" id="stateTaxPaid" placeholder="0" min="0" value="0" />
+              </div>
+              <span class="hint">SALT cap applies: property tax + state income tax ≤ $10,000</span>
+            </div>
+            <div class="form-group">
+              <label for="mortgageLoanBalance">Mortgage Loan Balance</label>
+              <div class="input-dollar">
+                <span>$</span>
+                <input type="number" id="mortgageLoanBalance" placeholder="0" min="0" value="0" />
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="homeEquityInterest">Home Equity Loan / HELOC Interest</label>
+              <div class="input-dollar">
+                <span>$</span>
+                <input type="number" id="homeEquityInterest" placeholder="0" min="0" value="0" />
+              </div>
+              <span class="hint">Deductible only if used for home improvement</span>
+            </div>
+            <div class="form-group">
+              <label for="homeOfficesqft">Home Office Square Footage <span class="optional">(if self-employed)</span></label>
+              <input type="number" id="homeOfficesqft" placeholder="0" min="0" value="0" />
+            </div>
+            <div class="form-group">
+              <label for="totalHomeSqft">Total Home Square Footage</label>
+              <input type="number" id="totalHomeSqft" placeholder="0" min="0" value="0" />
+            </div>
+          </div>
+          <div class="nav-buttons">
+            <button class="btn-secondary" onclick="goToStep(3)">← Back</button>
+            <button class="btn-primary" onclick="goToStep(5)">Next: Retirement →</button>
+          </div>
+        </section>
+
+        <!-- STEP 5: RETIREMENT -->
+        <section class="form-card" id="section-5">
+          <div class="section-header">
+            <div class="section-icon">🏦</div>
+            <div>
+              <h2>Retirement Contributions</h2>
+              <p>Pre-tax retirement savings directly reduce your taxable income.</p>
+            </div>
+          </div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="k401Contrib">401(k) / 403(b) Contributions (Employee)</label>
+              <div class="input-dollar">
+                <span>$</span>
+                <input type="number" id="k401Contrib" placeholder="0" min="0" value="0" />
+              </div>
+              <span class="hint">2024 limit: $23,000 ($30,500 if age 50+)</span>
+            </div>
+            <div class="form-group">
+              <label for="spouseK401Contrib">Spouse 401(k) Contributions</label>
+              <div class="input-dollar">
+                <span>$</span>
+                <input type="number" id="spouseK401Contrib" placeholder="0" min="0" value="0" />
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="traditionalIRAContrib">Traditional IRA Contributions</label>
+              <div class="input-dollar">
+                <span>$</span>
+                <input type="number" id="traditionalIRAContrib" placeholder="0" min="0" value="0" />
+              </div>
+              <span class="hint">2024 limit: $7,000 ($8,000 if age 50+). Deductibility depends on income &amp; employer plan.</span>
+            </div>
+            <div class="form-group">
+              <label for="rothIRAContrib">Roth IRA Contributions</label>
+              <div class="input-dollar">
+                <span>$</span>
+                <input type="number" id="rothIRAContrib" placeholder="0" min="0" value="0" />
+              </div>
+              <span class="hint">Not deductible now, but tax-free in retirement</span>
+            </div>
+            <div class="form-group">
+              <label for="sepIRAContrib">SEP-IRA / Solo 401(k) Contributions <span class="optional">(self-employed)</span></label>
+              <div class="input-dollar">
+                <span>$</span>
+                <input type="number" id="sepIRAContrib" placeholder="0" min="0" value="0" />
+              </div>
+              <span class="hint">Up to 25% of net self-employment income, max $69,000</span>
+            </div>
+            <div class="form-group">
+              <label for="pensionContrib">Pension / Defined Benefit Contributions</label>
+              <div class="input-dollar">
+                <span>$</span>
+                <input type="number" id="pensionContrib" placeholder="0" min="0" value="0" />
+              </div>
+            </div>
+          </div>
+          <div class="nav-buttons">
+            <button class="btn-secondary" onclick="goToStep(4)">← Back</button>
+            <button class="btn-primary" onclick="goToStep(6)">Next: Health →</button>
+          </div>
+        </section>
+
+        <!-- STEP 6: HEALTH -->
+        <section class="form-card" id="section-6">
+          <div class="section-header">
+            <div class="section-icon">🏥</div>
+            <div>
+              <h2>Health &amp; Education</h2>
+              <p>HSAs, FSAs, and student loans offer key above-the-line deductions.</p>
+            </div>
+          </div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="hsaContrib">HSA Contributions</label>
+              <div class="input-dollar">
+                <span>$</span>
+                <input type="number" id="hsaContrib" placeholder="0" min="0" value="0" />
+              </div>
+              <span class="hint">2024 limit: $4,150 (self) / $8,300 (family). Must have HDHP.</span>
+            </div>
+            <div class="form-group">
+              <label for="fsaContrib">Healthcare FSA Contributions</label>
+              <div class="input-dollar">
+                <span>$</span>
+                <input type="number" id="fsaContrib" placeholder="0" min="0" value="0" />
+              </div>
+              <span class="hint">2024 limit: $3,200 through employer</span>
+            </div>
+            <div class="form-group">
+              <label for="medicalExpenses">Out-of-Pocket Medical Expenses</label>
+              <div class="input-dollar">
+                <span>$</span>
+                <input type="number" id="medicalExpenses" placeholder="0" min="0" value="0" />
+              </div>
+              <span class="hint">Only expenses exceeding 7.5% of AGI are deductible</span>
+            </div>
+            <div class="form-group">
+              <label for="selfEmployedHealthIns">Self-Employed Health Insurance Premiums</label>
+              <div class="input-dollar">
+                <span>$</span>
+                <input type="number" id="selfEmployedHealthIns" placeholder="0" min="0" value="0" />
+              </div>
+              <span class="hint">100% deductible if self-employed and not covered by employer plan</span>
+            </div>
+            <div class="form-group">
+              <label for="studentLoanInterest">Student Loan Interest Paid</label>
+              <div class="input-dollar">
+                <span>$</span>
+                <input type="number" id="studentLoanInterest" placeholder="0" min="0" value="0" />
+              </div>
+              <span class="hint">Up to $2,500 deductible. Phases out at higher income.</span>
+            </div>
+            <div class="form-group">
+              <label for="educatorExpenses">Educator Expenses <span class="optional">(teachers)</span></label>
+              <div class="input-dollar">
+                <span>$</span>
+                <input type="number" id="educatorExpenses" placeholder="0" min="0" value="0" />
+              </div>
+              <span class="hint">Up to $300 for K-12 teachers' classroom expenses</span>
+            </div>
+          </div>
+          <div class="nav-buttons">
+            <button class="btn-secondary" onclick="goToStep(5)">← Back</button>
+            <button class="btn-primary" onclick="goToStep(7)">Next: Other →</button>
+          </div>
+        </section>
+
+        <!-- STEP 7: OTHER DEDUCTIONS -->
+        <section class="form-card" id="section-7">
+          <div class="section-header">
+            <div class="section-icon">📋</div>
+            <div>
+              <h2>Other Deductions &amp; Credits</h2>
+              <p>Charitable giving, investment losses, and more.</p>
+            </div>
+          </div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="charitableCash">Charitable Donations (Cash)</label>
+              <div class="input-dollar">
+                <span>$</span>
+                <input type="number" id="charitableCash" placeholder="0" min="0" value="0" />
+              </div>
+              <span class="hint">Requires receipts; deductible if itemizing</span>
+            </div>
+            <div class="form-group">
+              <label for="charitableNonCash">Charitable Donations (Non-Cash)</label>
+              <div class="input-dollar">
+                <span>$</span>
+                <input type="number" id="charitableNonCash" placeholder="0" min="0" value="0" />
+              </div>
+              <span class="hint">Clothing, household items, vehicle donations</span>
+            </div>
+            <div class="form-group">
+              <label for="investmentLosses">Capital Loss Carryover / Investment Losses</label>
+              <div class="input-dollar">
+                <span>$</span>
+                <input type="number" id="investmentLosses" placeholder="0" min="0" value="0" />
+              </div>
+              <span class="hint">Up to $3,000/year can offset ordinary income; excess carries forward</span>
+            </div>
+            <div class="form-group">
+              <label for="alimonyPaid">Alimony Paid <span class="optional">(pre-2019 divorce)</span></label>
+              <div class="input-dollar">
+                <span>$</span>
+                <input type="number" id="alimonyPaid" placeholder="0" min="0" value="0" />
+              </div>
+              <span class="hint">Only deductible for divorces finalized before 2019</span>
+            </div>
+            <div class="form-group">
+              <label for="unionDues">Union Dues / Professional Expenses</label>
+              <div class="input-dollar">
+                <span>$</span>
+                <input type="number" id="unionDues" placeholder="0" min="0" value="0" />
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="energyCredits">Energy-Efficient Home Improvements</label>
+              <div class="input-dollar">
+                <span>$</span>
+                <input type="number" id="energyCredits" placeholder="0" min="0" value="0" />
+              </div>
+              <span class="hint">Solar panels, heat pumps, insulation — up to 30% credit via IRA 2022</span>
+            </div>
+            <div class="form-group">
+              <label for="evCredit">Electric Vehicle Purchase?</label>
+              <div class="toggle-group">
+                <label class="toggle-label">
+                  <input type="radio" name="evPurchase" value="yes" id="evYes" />
+                  <span>Yes — up to $7,500 credit</span>
+                </label>
+                <label class="toggle-label">
+                  <input type="radio" name="evPurchase" value="no" id="evNo" checked />
+                  <span>No</span>
+                </label>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="adoptionExpenses">Adoption Expenses</label>
+              <div class="input-dollar">
+                <span>$</span>
+                <input type="number" id="adoptionExpenses" placeholder="0" min="0" value="0" />
+              </div>
+              <span class="hint">Up to $16,810 credit in 2024</span>
+            </div>
+          </div>
+          <div class="nav-buttons">
+            <button class="btn-secondary" onclick="goToStep(6)">← Back</button>
+            <button class="btn-success" onclick="calculateTaxes()">🔍 Analyze My Tax Savings</button>
+          </div>
+        </section>
+
+      </div><!-- /container -->
+    </main>
+
+    <!-- RESULTS SECTION -->
+    <div id="results-section" class="hidden">
+      <div class="container">
+
+        <!-- SUMMARY CARDS -->
+        <div class="results-header">
+          <h2>Your 2024 Tax Savings Analysis</h2>
+          <p>Based on the information you provided</p>
+          <button class="btn-secondary btn-sm" onclick="editForm()">← Edit My Info</button>
+        </div>
+
+        <div class="summary-cards" id="summary-cards">
+          <!-- Filled by JS -->
+        </div>
+
+        <!-- DEDUCTION COMPARISON -->
+        <div class="results-panel" id="deduction-panel">
+          <h3>📊 Standard vs. Itemized Deduction</h3>
+          <div id="deduction-comparison"></div>
+        </div>
+
+        <!-- SAVINGS OPPORTUNITIES -->
+        <div class="results-panel">
+          <h3>💡 All Tax Savings Opportunities</h3>
+          <div id="savings-opportunities"></div>
+        </div>
+
+        <!-- UNUSED OPPORTUNITIES -->
+        <div class="results-panel">
+          <h3>🚀 Untapped Savings You're Leaving Behind</h3>
+          <div id="untapped-savings"></div>
+        </div>
+
+        <!-- NEXT YEAR PLANNING -->
+        <div class="results-panel next-year-panel">
+          <h3>📅 Next Year Action Plan</h3>
+          <p class="panel-subtitle">Concrete steps to reduce your 2025 tax bill</p>
+          <div id="next-year-plan"></div>
+        </div>
+
+        <!-- TAX BRACKET -->
+        <div class="results-panel">
+          <h3>📈 Your Tax Bracket Breakdown</h3>
+          <div id="tax-bracket-breakdown"></div>
+        </div>
+
+        <!-- DISCLAIMER -->
+        <div class="disclaimer">
+          <strong>⚠️ Disclaimer:</strong> This tool provides general educational estimates only and is not tax advice. Tax laws are complex and individual situations vary. Consult a licensed CPA or tax professional before making financial decisions. This app does not store, transmit, or share any of your data.
+        </div>
+
+      </div>
+    </div>
+
+  </div><!-- /#app -->
+
+  <script src="app.js"></script>
+</body>
+</html>
