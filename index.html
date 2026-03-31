@@ -7,6 +7,8 @@
   <link rel="stylesheet" href="style.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <!-- PDF.js for in-browser tax return parsing -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 </head>
 <body>
   <div id="app">
@@ -24,6 +26,155 @@
         <div class="header-badge">Free &amp; Private — No data leaves your browser</div>
       </div>
     </header>
+
+    <!-- PRIOR YEAR UPLOAD PANEL -->
+    <div class="upload-banner-wrap">
+      <div class="container">
+        <div class="upload-banner" id="upload-banner">
+          <div class="upload-banner-left">
+            <div class="upload-icon">📄</div>
+            <div>
+              <div class="upload-banner-title">Already have a prior year return? Let us analyze it.</div>
+              <div class="upload-banner-sub">Upload your 2024 (or earlier) 1040 PDF — we'll extract the numbers, auto-fill this form, and tell you exactly what to do differently this year. Your file never leaves your browser.</div>
+            </div>
+          </div>
+          <div class="upload-banner-actions">
+            <button class="btn-upload" onclick="document.getElementById('prior-year-modal').classList.remove('hidden')">
+              📤 Upload Prior Return
+            </button>
+            <button class="btn-upload-manual" onclick="document.getElementById('manual-prior-modal').classList.remove('hidden')">
+              ✏️ Enter Manually
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PDF UPLOAD MODAL -->
+    <div class="modal-overlay hidden" id="prior-year-modal">
+      <div class="modal-box">
+        <div class="modal-header">
+          <h3>📄 Upload Your Prior Year Tax Return</h3>
+          <button class="modal-close" onclick="document.getElementById('prior-year-modal').classList.add('hidden')">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="upload-zone" id="upload-zone">
+            <div class="upload-zone-icon">📁</div>
+            <div class="upload-zone-text">Drag &amp; drop your 1040 PDF here</div>
+            <div class="upload-zone-sub">or click to browse · PDF files only · stays in your browser</div>
+            <input type="file" id="pdf-file-input" accept=".pdf" style="display:none" onchange="handlePDFUpload(this.files[0])" />
+            <button class="btn-primary" style="margin-top:14px" onclick="document.getElementById('pdf-file-input').click()">Choose PDF File</button>
+          </div>
+
+          <div class="parse-status hidden" id="parse-status">
+            <div class="parse-spinner" id="parse-spinner">⏳ Reading your return…</div>
+            <div class="parse-results hidden" id="parse-results"></div>
+          </div>
+
+          <div class="modal-tips">
+            <strong>📋 Supported forms:</strong> IRS Form 1040 (2020–2024) · TurboTax, H&amp;R Block, FreeTaxUSA, TaxAct, Tax Slayer PDFs all work
+            <br><strong>🔒 Privacy:</strong> Your PDF is processed entirely in your browser using PDF.js. Nothing is uploaded to any server.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MANUAL PRIOR YEAR MODAL -->
+    <div class="modal-overlay hidden" id="manual-prior-modal">
+      <div class="modal-box">
+        <div class="modal-header">
+          <h3>✏️ Enter Prior Year Key Numbers</h3>
+          <button class="modal-close" onclick="document.getElementById('manual-prior-modal').classList.add('hidden')">✕</button>
+        </div>
+        <div class="modal-body">
+          <p style="font-size:0.85rem;color:var(--gray-500);margin-bottom:18px">Enter what you can from your prior year 1040. We'll analyze gaps and suggest improvements for this year.</p>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Prior Tax Year</label>
+              <select id="py-year">
+                <option value="2024" selected>2024</option>
+                <option value="2023">2023</option>
+                <option value="2022">2022</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Filing Status</label>
+              <select id="py-filing">
+                <option value="single">Single</option>
+                <option value="mfj">Married Filing Jointly</option>
+                <option value="hoh">Head of Household</option>
+                <option value="mfs">Married Filing Separately</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Total Wages (W-2 Box 1)</label>
+              <div class="input-dollar"><span>$</span><input type="number" id="py-wages" placeholder="0" min="0" /></div>
+            </div>
+            <div class="form-group">
+              <label>Adjusted Gross Income (AGI)</label>
+              <div class="input-dollar"><span>$</span><input type="number" id="py-agi" placeholder="0" min="0" /></div>
+              <span class="hint">Form 1040, Line 11</span>
+            </div>
+            <div class="form-group">
+              <label>Total Federal Tax Paid</label>
+              <div class="input-dollar"><span>$</span><input type="number" id="py-tax" placeholder="0" min="0" /></div>
+              <span class="hint">Form 1040, Line 24</span>
+            </div>
+            <div class="form-group">
+              <label>Refund Received / Amount Owed</label>
+              <div class="input-dollar"><span>$</span><input type="number" id="py-refund" placeholder="0" /></div>
+              <span class="hint">Positive = refund · Negative = owed</span>
+            </div>
+            <div class="form-group">
+              <label>Deduction Type Used</label>
+              <select id="py-deduction-type">
+                <option value="standard">Standard Deduction</option>
+                <option value="itemized">Itemized Deductions</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Deduction Amount</label>
+              <div class="input-dollar"><span>$</span><input type="number" id="py-deduction-amount" placeholder="0" min="0" /></div>
+            </div>
+            <div class="form-group">
+              <label>401(k) Contributed</label>
+              <div class="input-dollar"><span>$</span><input type="number" id="py-401k" placeholder="0" min="0" /></div>
+            </div>
+            <div class="form-group">
+              <label>IRA Contributed</label>
+              <div class="input-dollar"><span>$</span><input type="number" id="py-ira" placeholder="0" min="0" /></div>
+            </div>
+            <div class="form-group">
+              <label>HSA Contributed</label>
+              <div class="input-dollar"><span>$</span><input type="number" id="py-hsa" placeholder="0" min="0" /></div>
+            </div>
+            <div class="form-group">
+              <label>Child Tax Credits Received</label>
+              <div class="input-dollar"><span>$</span><input type="number" id="py-ctc" placeholder="0" min="0" /></div>
+            </div>
+            <div class="form-group">
+              <label>Mortgage Interest Paid</label>
+              <div class="input-dollar"><span>$</span><input type="number" id="py-mortgage" placeholder="0" min="0" /></div>
+            </div>
+            <div class="form-group">
+              <label>Charitable Donations</label>
+              <div class="input-dollar"><span>$</span><input type="number" id="py-charity" placeholder="0" min="0" /></div>
+            </div>
+          </div>
+          <div style="margin-top:20px;display:flex;gap:12px;justify-content:flex-end">
+            <button class="btn-secondary" onclick="document.getElementById('manual-prior-modal').classList.add('hidden')">Cancel</button>
+            <button class="btn-primary" onclick="analyzePriorYear()">🔍 Analyze &amp; Suggest</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PRIOR YEAR ANALYSIS RESULTS -->
+    <div class="prior-analysis-bar hidden" id="prior-analysis-bar">
+      <div class="container">
+        <div class="prior-analysis-inner" id="prior-analysis-inner"></div>
+      </div>
+    </div>
 
     <!-- MAIN FORM -->
     <main class="main-content" id="form-section">
@@ -615,6 +766,9 @@
           <p>Based on the information you provided</p>
           <button class="btn-secondary btn-sm" onclick="editForm()">← Edit My Info</button>
         </div>
+
+        <!-- PRIOR YEAR COMPARISON (shown only if data available) -->
+        <div id="py-comparison-panel" class="hidden"></div>
 
         <div class="summary-cards" id="summary-cards">
           <!-- Filled by JS -->

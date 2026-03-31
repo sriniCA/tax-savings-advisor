@@ -608,6 +608,9 @@ function calculateTaxes() {
     titleEl.textContent = `Your ${yearLabel}`;
   }
 
+  // Render prior year comparison if data was loaded
+  renderPriorYearComparison(agi, totalTax, netTaxDue, marginalRate);
+
   // --- SUMMARY CARDS ---
   document.getElementById('summary-cards').innerHTML = `
     <div class="summary-card blue">
@@ -967,6 +970,409 @@ function calculateTaxes() {
   `;
 }
 
+/* ==========================================================
+   PRIOR YEAR RETURN ANALYSIS ENGINE
+   ========================================================== */
+
+// Global store for prior year data (set by PDF parser or manual entry)
+let priorYearData = null;
+
+/* ---- PDF.js SETUP ---- */
+function getPDFLib() {
+  const lib = window['pdfjs-dist/build/pdf'];
+  if (lib) {
+    lib.GlobalWorkerOptions.workerSrc =
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  }
+  return lib;
+}
+
+/* ---- DRAG & DROP WIRING ---- */
+function initDropZone() {
+  const zone = document.getElementById('upload-zone');
+  if (!zone) return;
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault();
+    zone.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file && file.type === 'application/pdf') handlePDFUpload(file);
+  });
+}
+
+/* ---- PDF UPLOAD HANDLER ---- */
+async function handlePDFUpload(file) {
+  if (!file) return;
+  const status  = document.getElementById('parse-status');
+  const spinner = document.getElementById('parse-spinner');
+  const results = document.getElementById('parse-results');
+  status.classList.remove('hidden');
+  spinner.classList.remove('hidden');
+  results.classList.add('hidden');
+  results.innerHTML = '';
+
+  try {
+    const pdfjsLib = getPDFLib();
+    if (!pdfjsLib) throw new Error('PDF library not loaded yet. Please wait a moment and try again.');
+
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf  = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    let fullText = '';
+
+    for (let p = 1; p <= Math.min(pdf.numPages, 6); p++) {
+      const page    = await pdf.getPage(p);
+      const content = await page.getTextContent();
+      // Keep items in rough Y-order for number extraction
+      const items = content.items.sort((a, b) => {
+        const yDiff = Math.round(b.transform[5] / 5) - Math.round(a.transform[5] / 5);
+        return yDiff !== 0 ? yDiff : a.transform[4] - b.transform[4];
+      });
+      fullText += items.map(i => i.str).join(' ') + '\n';
+    }
+
+    const extracted = extract1040Fields(fullText);
+    spinner.classList.add('hidden');
+    showParseResults(extracted, results);
+  } catch (err) {
+    spinner.classList.add('hidden');
+    results.classList.remove('hidden');
+    results.innerHTML = `<div class="parse-error">❌ Could not parse PDF: ${err.message}<br>
+      <small>Try "Enter Manually" instead, or make sure you're uploading a text-based PDF (not a scanned image).</small></div>`;
+  }
+}
+
+/* ---- 1040 TEXT EXTRACTOR ---- */
+function extract1040Fields(text) {
+  // Normalise the text: strip multiple spaces, make it easier to match
+  const t = text.replace(/\s+/g, ' ').replace(/,/g, '');
+
+  const grab = (patterns) => {
+    for (const pat of patterns) {
+      const m = t.match(pat);
+      if (m) {
+        const val = parseFloat(m[1].replace(/[^0-9.\-]/g, ''));
+        if (!isNaN(val) && val > 0) return val;
+      }
+    }
+    return 0;
+  };
+
+  // Detect tax year from the document
+  const yearM = t.match(/(?:Form 1040|U\.S\. Individual).*?(20\d\d)/i)
+              || t.match(/Tax Year (20\d\d)/i)
+              || t.match(/\b(202[0-4])\b/);
+  const taxYear = yearM ? parseInt(yearM[1]) : 2024;
+
+  // Filing status detection
+  let filingStatus = 'single';
+  if (/married filing jointly/i.test(t))           filingStatus = 'mfj';
+  else if (/married filing separately/i.test(t))   filingStatus = 'mfs';
+  else if (/head of household/i.test(t))           filingStatus = 'hoh';
+
+  // Key line items — try multiple pattern variants across different tax software
+  const wages = grab([
+    /(?:1a|wages[, ]+salaries)[^0-9]+([\d]+)/i,
+    /Total wages.*?([\d]{3,})/i,
+    /W-2.*?box 1.*?([\d]{3,})/i
+  ]);
+
+  const agi = grab([
+    /(?:11|adjusted gross income)[^0-9]+([\d]+)/i,
+    /AGI[^0-9]+([\d]{3,})/i,
+    /Adjusted Gross[^0-9]+([\d]{3,})/i
+  ]);
+
+  const standardDeduction = grab([
+    /(?:12a?|standard deduction)[^0-9]+([\d]+)/i,
+    /Standard deduction[^0-9]+([\d]{3,})/i
+  ]);
+
+  const itemizedDeduction = grab([
+    /Schedule A[^0-9]+([\d]{3,})/i,
+    /Itemized deductions[^0-9]+([\d]{3,})/i
+  ]);
+
+  const taxableIncome = grab([
+    /(?:15|taxable income)[^0-9]+([\d]+)/i,
+    /Taxable income[^0-9]+([\d]{3,})/i
+  ]);
+
+  const totalTax = grab([
+    /(?:24|total tax)[^0-9]+([\d]+)/i,
+    /Total tax[^0-9]+([\d]{3,})/i
+  ]);
+
+  const federalWithheld = grab([
+    /(?:25a?|federal income tax withheld)[^0-9]+([\d]+)/i,
+    /W-2[^0-9]+box 2[^0-9]+([\d]{3,})/i,
+    /Federal tax withheld[^0-9]+([\d]{3,})/i
+  ]);
+
+  const refundRaw = grab([/(?:35a?|refund)[^0-9]+([\d]+)/i, /Amount refunded[^0-9]+([\d]{3,})/i]);
+  const owedRaw   = grab([/(?:37|amount owed|amount you owe)[^0-9]+([\d]+)/i]);
+  const refund    = refundRaw > 0 ? refundRaw : (owedRaw > 0 ? -owedRaw : 0);
+
+  // Schedule 1 items
+  const studentLoan = grab([/student loan interest[^0-9]+([\d]{2,})/i, /21[^0-9]+([\d]{2,})/i]);
+  const selfEmployed = grab([/self.?employment[^0-9]+([\d]{3,})/i, /schedule c[^0-9]+([\d]{3,})/i]);
+
+  // Retirement (Schedule 1 line 20)
+  const iraDeduction = grab([/IRA deduction[^0-9]+([\d]{2,})/i, /(?:line 20|traditional IRA)[^0-9]+([\d]{2,})/i]);
+
+  // Schedule A
+  const mortgageInterest = grab([/mortgage interest[^0-9]+([\d]{3,})/i, /home mortgage[^0-9]+([\d]{3,})/i]);
+  const charitableDeduct = grab([/charitable[^0-9]+([\d]{2,})/i, /gifts to charity[^0-9]+([\d]{2,})/i]);
+  const saltDeduct       = grab([/state.*?local.*?taxes[^0-9]+([\d]{2,})/i, /SALT[^0-9]+([\d]{2,})/i]);
+
+  // W-2 Box 12 — 401k (code D)
+  const k401 = grab([/401.?k[^0-9]+([\d]{2,})/i, /box 12.*?code d[^0-9]+([\d]{2,})/i, /elective deferrals[^0-9]+([\d]{2,})/i]);
+
+  // HSA (Form 8889)
+  const hsa = grab([/HSA[^0-9]+([\d]{2,})/i, /health savings[^0-9]+([\d]{2,})/i]);
+
+  // Child Tax Credit
+  const ctc = grab([/child tax credit[^0-9]+([\d]{2,})/i, /(?:8812|additional child)[^0-9]+([\d]{2,})/i]);
+
+  // Number of dependents
+  const dependentsM = t.match(/(?:number of|qualifying) (?:dependents|children)[^\d]*([\d]{1,2})/i);
+  const numDependents = dependentsM ? parseInt(dependentsM[1]) : 0;
+
+  const deductionType   = itemizedDeduction > standardDeduction ? 'itemized' : 'standard';
+  const deductionAmount = Math.max(standardDeduction, itemizedDeduction);
+
+  return {
+    taxYear, filingStatus, wages, agi, taxableIncome,
+    totalTax, federalWithheld, refund,
+    deductionType, deductionAmount, standardDeduction, itemizedDeduction,
+    studentLoan, selfEmployed, iraDeduction,
+    mortgageInterest, charitableDeduct, saltDeduct,
+    k401, hsa, ctc, numDependents
+  };
+}
+
+/* ---- SHOW PARSE RESULTS IN MODAL ---- */
+function showParseResults(data, container) {
+  container.classList.remove('hidden');
+  const rows = [
+    ['Tax Year Detected',   data.taxYear],
+    ['Filing Status',       data.filingStatus.toUpperCase()],
+    ['Total Wages',         fmt(data.wages)],
+    ['Adjusted Gross Income', fmt(data.agi)],
+    ['Taxable Income',      fmt(data.taxableIncome)],
+    ['Total Federal Tax',   fmt(data.totalTax)],
+    ['Federal Withheld',    fmt(data.federalWithheld)],
+    ['Refund / (Owed)',     data.refund >= 0 ? fmt(data.refund) + ' refund' : fmt(-data.refund) + ' owed'],
+    ['Deduction Used',      data.deductionType === 'itemized' ? 'Itemized — ' + fmt(data.deductionAmount) : 'Standard — ' + fmt(data.deductionAmount)],
+    data.k401          ? ['401(k) Contribution',  fmt(data.k401)]          : null,
+    data.iraDeduction  ? ['IRA Deduction',         fmt(data.iraDeduction)]  : null,
+    data.hsa           ? ['HSA Contribution',      fmt(data.hsa)]           : null,
+    data.mortgageInterest ? ['Mortgage Interest',  fmt(data.mortgageInterest)] : null,
+    data.charitableDeduct ? ['Charitable Donations', fmt(data.charitableDeduct)] : null,
+    data.ctc           ? ['Child Tax Credit',      fmt(data.ctc)]           : null,
+  ].filter(Boolean);
+
+  const anyData = data.wages > 0 || data.agi > 0 || data.totalTax > 0;
+
+  container.innerHTML = anyData ? `
+    <div class="parse-success">
+      <div class="parse-success-title">✅ Successfully extracted ${rows.length} fields from your ${data.taxYear} return</div>
+      <table class="parse-table">
+        ${rows.map(([k,v]) => `<tr><td>${k}</td><td><strong>${v}</strong></td></tr>`).join('')}
+      </table>
+      <div style="display:flex;gap:12px;margin-top:16px;flex-wrap:wrap">
+        <button class="btn-success" onclick="applyPriorYearData(parsedPDFData)">✓ Use This Data &amp; Analyze</button>
+        <button class="btn-secondary" onclick="document.getElementById('prior-year-modal').classList.add('hidden')">Cancel</button>
+      </div>
+    </div>
+  ` : `
+    <div class="parse-error">
+      ⚠️ We couldn't extract usable data from this PDF. This can happen with scanned (image-based) PDFs.<br>
+      <strong>Try these options:</strong><br>
+      • Use "Enter Manually" instead<br>
+      • Make sure the PDF is text-based (open it, select text with your cursor — if you can't, it's a scan)<br>
+      • Try printing to PDF from your tax software again
+    </div>
+  `;
+
+  // Store for the confirm button
+  window.parsedPDFData = data;
+}
+
+/* ---- APPLY PRIOR YEAR DATA (from PDF or manual) ---- */
+function applyPriorYearData(data) {
+  priorYearData = data;
+
+  // Auto-fill form fields where we have data
+  const set = (id, val) => { const el = document.getElementById(id); if (el && val > 0) el.value = val; };
+  set('w2Income',            data.wages);
+  set('mortgageInterest',    data.mortgageInterest);
+  set('charitableCash',      data.charitableDeduct);
+  set('k401Contrib',         data.k401);
+  set('traditionalIRAContrib', data.iraDeduction);
+  set('hsaContrib',          data.hsa);
+  set('studentLoanInterest', data.studentLoan);
+  set('federalWithheld',     data.federalWithheld);
+  if (data.numDependents > 0) set('numChildrenUnder17', data.numDependents);
+
+  // Set filing status
+  const fsMap = { single: 0, mfj: 1, mfs: 2, hoh: 3 };
+  const fsIdx = fsMap[data.filingStatus] ?? 0;
+  const radios = document.querySelectorAll('input[name="filingStatus"]');
+  if (radios[fsIdx]) {
+    radios[fsIdx].checked = true;
+    radios.forEach(r => r.closest('.radio-card')?.classList.toggle('selected', r.checked));
+  }
+
+  // Show analysis bar
+  showPriorAnalysisBar(data);
+
+  // Close modals
+  document.getElementById('prior-year-modal')?.classList.add('hidden');
+  document.getElementById('manual-prior-modal')?.classList.add('hidden');
+}
+
+/* ---- MANUAL ENTRY HANDLER ---- */
+function analyzePriorYear() {
+  const getNum = id => parseFloat(document.getElementById(id)?.value) || 0;
+  const data = {
+    taxYear:           parseInt(document.getElementById('py-year')?.value) || 2024,
+    filingStatus:      document.getElementById('py-filing')?.value || 'single',
+    wages:             getNum('py-wages'),
+    agi:               getNum('py-agi'),
+    totalTax:          getNum('py-tax'),
+    refund:            getNum('py-refund'),
+    deductionType:     document.getElementById('py-deduction-type')?.value || 'standard',
+    deductionAmount:   getNum('py-deduction-amount'),
+    k401:              getNum('py-401k'),
+    iraDeduction:      getNum('py-ira'),
+    hsa:               getNum('py-hsa'),
+    ctc:               getNum('py-ctc'),
+    mortgageInterest:  getNum('py-mortgage'),
+    charitableDeduct:  getNum('py-charity'),
+    federalWithheld:   0,
+    studentLoan:       0,
+    selfEmployed:      0,
+    saltDeduct:        0,
+    taxableIncome:     0,
+    numDependents:     0
+  };
+  applyPriorYearData(data);
+}
+
+/* ---- SHOW PRIOR ANALYSIS STICKY BAR ---- */
+function showPriorAnalysisBar(data) {
+  const bar = document.getElementById('prior-analysis-bar');
+  const inner = document.getElementById('prior-analysis-inner');
+  if (!bar || !inner) return;
+
+  const effRate = data.agi > 0 ? ((data.totalTax / data.agi) * 100).toFixed(1) : '—';
+  inner.innerHTML = `
+    <div class="pa-summary">
+      <div class="pa-badge">📄 ${data.taxYear} Return Loaded</div>
+      <div class="pa-item"><span>Prior AGI</span><strong>${fmt(data.agi)}</strong></div>
+      <div class="pa-item"><span>Prior Tax</span><strong>${fmt(data.totalTax)}</strong></div>
+      <div class="pa-item"><span>Effective Rate</span><strong>${effRate}%</strong></div>
+      <div class="pa-item"><span>${data.refund >= 0 ? 'Refund' : 'Owed'}</span><strong style="color:${data.refund >= 0 ? 'var(--success)' : 'var(--danger)'}">${fmt(Math.abs(data.refund))}</strong></div>
+      <div class="pa-item"><span>Deduction</span><strong>${data.deductionType === 'itemized' ? 'Itemized' : 'Standard'} ${fmt(data.deductionAmount)}</strong></div>
+    </div>
+    <div class="pa-hint">✏️ <a href="#" onclick="document.getElementById('manual-prior-modal').classList.remove('hidden');return false">Edit prior year data</a> · Fill out the form below and click Analyze to see the year-over-year comparison</div>
+  `;
+  bar.classList.remove('hidden');
+}
+
+/* ---- YEAR-OVER-YEAR COMPARISON (called inside calculateTaxes) ---- */
+function renderPriorYearComparison(currentAGI, currentTax, currentRefund, marginalRate) {
+  const panel = document.getElementById('py-comparison-panel');
+  if (!panel || !priorYearData) { if (panel) panel.classList.add('hidden'); return; }
+
+  const py = priorYearData;
+  const agiChange   = currentAGI  - py.agi;
+  const taxChange   = currentTax  - py.totalTax;
+
+  const arrow = (val, invertColor) => {
+    const up = val > 0;
+    const col = invertColor
+      ? (up ? 'var(--danger)' : 'var(--success)')
+      : (up ? 'var(--success)' : 'var(--danger)');
+    return val === 0 ? '<span style="color:var(--gray-400)">—</span>'
+      : `<span style="color:${col}">${up ? '▲' : '▼'} ${fmt(Math.abs(val))}</span>`;
+  };
+
+  // Find missed opportunities from prior year
+  const missed = [];
+  const k401Limit2025 = 23500;
+  if ((py.k401 || 0) < k401Limit2025 * 0.5) {
+    const room = k401Limit2025 - (py.k401 || 0);
+    missed.push({ icon: '🏦', text: `You contributed ${py.k401 ? fmt(py.k401) : 'nothing'} to your 401(k) last year. The ${py.taxYear} limit was ${fmt(23000)}. You left ${fmt(room)} of tax-deferred space unused — potentially ${fmt(room * marginalRate)} in lost tax savings.` });
+  }
+  if (!py.hsa || py.hsa === 0) {
+    missed.push({ icon: '🏥', text: `No HSA contribution detected in your ${py.taxYear} return. If you had a high-deductible health plan, you missed up to ${fmt(4150)} (self) / ${fmt(8300)} (family) in triple-tax-free savings.` });
+  }
+  if (py.deductionType === 'standard' && (py.mortgageInterest > 0 || py.charitableDeduct > 0)) {
+    const potentialItemized = (py.mortgageInterest || 0) + (py.charitableDeduct || 0) + (py.saltDeduct || 0);
+    const stdDed2024 = py.filingStatus === 'mfj' ? 29200 : 14600;
+    if (potentialItemized > stdDed2024 * 0.8) {
+      missed.push({ icon: '📋', text: `You took the standard deduction (${fmt(stdDed2024)}) but had ${fmt(potentialItemized)} in itemizable expenses (mortgage interest + charity). Consider bunching more deductions into one year to push over the threshold.` });
+    }
+  }
+  if (!py.iraDeduction || py.iraDeduction === 0) {
+    missed.push({ icon: '💰', text: `No IRA deduction found in your ${py.taxYear} return. If income-eligible, contributing ${fmt(7000)} to a Traditional IRA (${fmt(8000)} if 50+) could have saved you ${fmt(7000 * marginalRate)}.` });
+  }
+  if (py.refund > 3000) {
+    missed.push({ icon: '💸', text: `You received a ${fmt(py.refund)} refund — that's an interest-free loan to the IRS. Adjust your W-4 this year to get that money in each paycheck instead. Use the IRS Withholding Estimator.` });
+  }
+  if (py.totalTax > 0 && py.agi > 0 && (py.totalTax / py.agi) > 0.18) {
+    missed.push({ icon: '📉', text: `Your effective tax rate was ${((py.totalTax/py.agi)*100).toFixed(1)}% — above average for your income. This year, focus on maximizing above-the-line deductions (401k, HSA, IRA) to lower your AGI before other deductions apply.` });
+  }
+
+  panel.classList.remove('hidden');
+  panel.innerHTML = `
+    <div class="results-panel py-compare-panel">
+      <h3>📊 Year-Over-Year Comparison: ${py.taxYear} → ${py.taxYear + 1}</h3>
+      <div class="pyc-grid">
+        <div class="pyc-col">
+          <div class="pyc-year-label">${py.taxYear} (Prior Year)</div>
+          <div class="pyc-row"><span>AGI</span><strong>${fmt(py.agi)}</strong></div>
+          <div class="pyc-row"><span>Total Tax</span><strong>${fmt(py.totalTax)}</strong></div>
+          <div class="pyc-row"><span>Effective Rate</span><strong>${py.agi > 0 ? ((py.totalTax/py.agi)*100).toFixed(1) : '—'}%</strong></div>
+          <div class="pyc-row"><span>Deduction</span><strong>${py.deductionType === 'itemized' ? 'Itemized' : 'Standard'} ${fmt(py.deductionAmount)}</strong></div>
+          <div class="pyc-row"><span>401(k)</span><strong>${fmt(py.k401)}</strong></div>
+          <div class="pyc-row"><span>IRA</span><strong>${fmt(py.iraDeduction)}</strong></div>
+          <div class="pyc-row"><span>HSA</span><strong>${fmt(py.hsa)}</strong></div>
+          <div class="pyc-row"><span>${py.refund >= 0 ? 'Refund' : 'Owed'}</span><strong style="color:${py.refund >= 0 ? 'var(--success)' : 'var(--danger)'}">${fmt(Math.abs(py.refund))}</strong></div>
+        </div>
+        <div class="pyc-col pyc-change">
+          <div class="pyc-year-label">Change</div>
+          <div class="pyc-row"><span>&nbsp;</span><strong>${arrow(agiChange, false)}</strong></div>
+          <div class="pyc-row"><span>&nbsp;</span><strong>${arrow(taxChange, true)}</strong></div>
+          <div class="pyc-row"><span>&nbsp;</span>—</div>
+          <div class="pyc-row"><span>&nbsp;</span>—</div>
+        </div>
+        <div class="pyc-col pyc-current">
+          <div class="pyc-year-label">This Year (Projected)</div>
+          <div class="pyc-row"><span>AGI</span><strong>${fmt(currentAGI)}</strong></div>
+          <div class="pyc-row"><span>Total Tax</span><strong>${fmt(currentTax)}</strong></div>
+          <div class="pyc-row"><span>Effective Rate</span><strong>${currentAGI > 0 ? ((currentTax/currentAGI)*100).toFixed(1) : '—'}%</strong></div>
+        </div>
+      </div>
+      ${missed.length > 0 ? `
+        <div class="pyc-missed-section">
+          <div class="pyc-missed-title">🔍 What You Missed Last Year — Fix It This Year</div>
+          <div class="pyc-missed-list">
+            ${missed.map(m => `
+              <div class="pyc-missed-item">
+                <span class="pyc-missed-icon">${m.icon}</span>
+                <span>${m.text}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      ` : `<div style="color:var(--success);font-weight:600;margin-top:16px;font-size:0.9rem;">🎉 Great job last year! You utilized the major opportunities. Keep it up.</div>`}
+    </div>
+  `;
+}
+
 /* ---- INIT ---- */
 document.addEventListener('DOMContentLoaded', () => {
   // Keep radio-card highlights in sync
@@ -982,4 +1388,7 @@ document.addEventListener('DOMContentLoaded', () => {
   ['taxpayerAge', 'spouseAge'].forEach(id => {
     document.getElementById(id)?.addEventListener('input', updateSeniorBanner);
   });
+
+  // Init drag-and-drop on upload zone
+  initDropZone();
 });
