@@ -276,6 +276,48 @@ const TAX_DATA = {
   }
 };
 
+/* ---- EARNED INCOME TAX CREDIT (EITC) DATA ---- */
+// Source: IRS Rev. Proc. 2023-34 (2024), Rev. Proc. 2024-40 (2025), estimated 2026
+const EITC_DATA = {
+  2024: {
+    investmentLimit: 11600,
+    // children[0]=no children, [1]=1 child, [2]=2 children, [3]=3+ children
+    children: [
+      { max: 632,  earnedIncomeAmt: 8260,  phaseoutSingle: 9524,  phaseoutMFJ: 17024, limitSingle: 18591, limitMFJ: 25511 },
+      { max: 4213, earnedIncomeAmt: 12220, phaseoutSingle: 21560, phaseoutMFJ: 29640, limitSingle: 49084, limitMFJ: 56004 },
+      { max: 6960, earnedIncomeAmt: 17400, phaseoutSingle: 21560, phaseoutMFJ: 29640, limitSingle: 55768, limitMFJ: 62688 },
+      { max: 7830, earnedIncomeAmt: 17400, phaseoutSingle: 21560, phaseoutMFJ: 29640, limitSingle: 59899, limitMFJ: 66819 }
+    ]
+  },
+  2025: {
+    investmentLimit: 11950,
+    children: [
+      { max: 649,  earnedIncomeAmt: 8490,  phaseoutSingle: 10820, phaseoutMFJ: 18320, limitSingle: 19104, limitMFJ: 26214 },
+      { max: 4328, earnedIncomeAmt: 12570, phaseoutSingle: 23511, phaseoutMFJ: 31611, limitSingle: 50434, limitMFJ: 57554 },
+      { max: 7152, earnedIncomeAmt: 17920, phaseoutSingle: 23511, phaseoutMFJ: 31611, limitSingle: 57310, limitMFJ: 64430 },
+      { max: 8046, earnedIncomeAmt: 17920, phaseoutSingle: 23511, phaseoutMFJ: 31611, limitSingle: 61555, limitMFJ: 68675 }
+    ]
+  },
+  2026: {
+    investmentLimit: 12300,
+    children: [
+      { max: 669,  earnedIncomeAmt: 8745,  phaseoutSingle: 11145, phaseoutMFJ: 18870, limitSingle: 19677, limitMFJ: 27000  },
+      { max: 4458, earnedIncomeAmt: 12947, phaseoutSingle: 24216, phaseoutMFJ: 32559, limitSingle: 51947, limitMFJ: 59281  },
+      { max: 7367, earnedIncomeAmt: 18458, phaseoutSingle: 24216, phaseoutMFJ: 32559, limitSingle: 59029, limitMFJ: 66363  },
+      { max: 8287, earnedIncomeAmt: 18458, phaseoutSingle: 24216, phaseoutMFJ: 32559, limitSingle: 63402, limitMFJ: 70735  }
+    ]
+  }
+};
+
+/* ---- SAVER'S CREDIT (Form 8880) DATA ---- */
+// Thresholds: [50% rate cutoff, 20% rate cutoff, 10% rate cutoff]
+// Source: IRS Rev. Proc. 2023-34 (2024), Rev. Proc. 2024-40 (2025), estimated 2026
+const SAVERS_CREDIT_DATA = {
+  2024: { single: [23000, 25000, 38250], hoh: [34500, 37500, 57375], mfj: [46000, 50000, 76500] },
+  2025: { single: [23750, 25750, 39500], hoh: [35625, 38625, 59250], mfj: [47500, 51500, 79000] },
+  2026: { single: [24450, 26500, 40700], hoh: [36700, 39750, 61050], mfj: [48900, 53000, 81400] }
+};
+
 /* ---- UTILITY ---- */
 const fmt = (n) => '$' + Math.round(Math.abs(n)).toLocaleString();
 const fmtPct = (n) => (n * 100).toFixed(1) + '%';
@@ -302,16 +344,21 @@ const radio = (name) => document.querySelector(`input[name="${name}"]:checked`)?
 
 /* ---- STEP NAVIGATION ---- */
 let currentStep = 1;
+let highestStep  = 1;   // furthest step ever reached — keeps tabs green on back-navigation
 const totalSteps = 7;
 
 function goToStep(step) {
   document.getElementById(`section-${currentStep}`)?.classList.remove('active-section');
+  if (step > highestStep) highestStep = step;
+
   document.querySelectorAll('.step').forEach((el, i) => {
-    el.classList.remove('active');
-    if (i + 1 < step) el.classList.add('completed');
-    else el.classList.remove('completed');
-    if (i + 1 === step) el.classList.add('active');
+    const s = i + 1;
+    el.classList.remove('active', 'completed');
+    // Mark as completed if it's before the destination OR already visited but not the current destination
+    if (s < step || (s <= highestStep && s !== step)) el.classList.add('completed');
+    if (s === step) el.classList.add('active');
   });
+
   currentStep = step;
   const next = document.getElementById(`section-${step}`);
   if (next) {
@@ -321,11 +368,20 @@ function goToStep(step) {
 }
 
 function editForm() {
+  highestStep = 1;
   document.getElementById('results-section').classList.add('hidden');
   document.getElementById('form-section').style.display = '';
   goToStep(1);
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
+
+/* ---- STEP TAB NAVIGATION ---- */
+document.querySelectorAll('.step').forEach(stepEl => {
+  stepEl.addEventListener('click', () => {
+    const target = parseInt(stepEl.dataset.step);
+    if (target && target !== currentStep) goToStep(target);
+  });
+});
 
 /* ---- RADIO CARD SELECTION ---- */
 document.querySelectorAll('.radio-card').forEach(card => {
@@ -403,6 +459,62 @@ function calcHomeOfficeDeduction(homeOfficeSqft, totalSqft, selfEmploymentNetInc
   if (homeOfficeSqft <= 0 || totalSqft <= 0 || selfEmploymentNetIncome <= 0) return 0;
   const simplifiedMethod = homeOfficeSqft * 5;
   return Math.min(simplifiedMethod, selfEmploymentNetIncome);
+}
+
+/* ---- EARNED INCOME TAX CREDIT (EITC / Form EIC) ---- */
+// MFS filers and those with investment income above the limit are ineligible.
+// Phase-in: credit grows with earned income up to earnedIncomeAmt.
+// Phase-out: credit shrinks above the threshold based on higher of AGI or earned income.
+function calcEITC(earnedIncome, agi, filingStatus, numChildren, investmentIncome, taxYear) {
+  if (filingStatus === 'mfs') return 0;
+  if (earnedIncome <= 0) return 0;
+  const data = EITC_DATA[taxYear] || EITC_DATA[2025];
+  if (investmentIncome > data.investmentLimit) return 0;
+
+  const childIdx = Math.min(numChildren, 3);
+  const d = data.children[childIdx];
+  const isMFJ = filingStatus === 'mfj';
+  const phaseoutStart = isMFJ ? d.phaseoutMFJ   : d.phaseoutSingle;
+  const incomeLimit   = isMFJ ? d.limitMFJ       : d.limitSingle;
+
+  // Phase-out uses the higher of AGI or earned income
+  const limitIncome = Math.max(earnedIncome, agi);
+  if (limitIncome >= incomeLimit) return 0;
+
+  // Phase-in: credit grows proportionally up to max
+  const phaseInRate = d.max / d.earnedIncomeAmt;
+  let credit = Math.min(earnedIncome * phaseInRate, d.max);
+
+  // Phase-out: credit shrinks linearly to $0 at income limit
+  if (limitIncome > phaseoutStart) {
+    const phaseoutRange = incomeLimit - phaseoutStart;
+    const phaseoutRate  = d.max / phaseoutRange;
+    credit = Math.max(0, credit - (limitIncome - phaseoutStart) * phaseoutRate);
+  }
+
+  return Math.round(credit);
+}
+
+/* ---- SAVER'S CREDIT (Retirement Savings Contributions Credit, Form 8880) ---- */
+// 50% / 20% / 10% of up to $2,000 per person ($4,000 MFJ) in retirement contributions.
+// MFS filers cannot claim. Students and dependents are ineligible (not checked here).
+function calcSaversCredit(retirementContribs, agi, filingStatus, taxYear) {
+  if (filingStatus === 'mfs') return 0;
+  if (retirementContribs <= 0) return 0;
+  const data = SAVERS_CREDIT_DATA[taxYear] || SAVERS_CREDIT_DATA[2025];
+  const thresholds = filingStatus === 'mfj' ? data.mfj
+                   : filingStatus === 'hoh' ? data.hoh
+                   : data.single;
+
+  let creditRate = 0;
+  if      (agi <= thresholds[0]) creditRate = 0.50;
+  else if (agi <= thresholds[1]) creditRate = 0.20;
+  else if (agi <= thresholds[2]) creditRate = 0.10;
+  if (creditRate === 0) return 0;
+
+  // Max eligible contribution: $2,000 per person; $4,000 for MFJ (both spouses)
+  const maxContrib = filingStatus === 'mfj' ? 4000 : 2000;
+  return Math.round(Math.min(retirementContribs, maxContrib) * creditRate);
 }
 
 /* ---- MAIN CALCULATION ---- */
@@ -575,6 +687,11 @@ function calculateTaxes() {
   }
 
   // --- CREDITS ---
+  // Earned income = W-2 + self-employment net (used for EITC and Saver's Credit eligibility)
+  const earnedIncome = w2Income + spouseW2 + seNet;
+  // Investment income = passive income not eligible for EITC (LTCG + dividends + rental net if positive)
+  const investmentIncome = ltcg + dividends + Math.max(0, rentalNet);
+
   const childTaxCredit      = calcChildTaxCredit(numChildrenUnder17, agi, filingStatus, lim);
   const otherDepCredit      = numOtherDependents * lim.otherDependentCredit;
   const childCareCredit     = calcChildCareCredit(childcareExpenses, numChildrenUnder17, dependentCareFSA, lim);
@@ -583,7 +700,14 @@ function calculateTaxes() {
   const evCredit            = evPurchased ? 7500 : 0;
   const adoptionCredit      = Math.min(adoptionExpenses, lim.adoptionCreditMax);
 
-  const totalCredits = childTaxCredit + otherDepCredit + childCareCredit + aoCredit + energyCredit + evCredit + adoptionCredit;
+  // EITC — fully calculated (was missing before)
+  const eitcCredit          = calcEITC(earnedIncome, agi, filingStatus, numChildrenUnder17, investmentIncome, taxYear);
+
+  // Saver's Credit (Form 8880) — retirement contributions credit
+  const totalRetirementContribs = k401Contrib + spouseK401Contrib + traditionalIRA + sepIRA;
+  const saversCredit        = calcSaversCredit(totalRetirementContribs, agi, filingStatus, taxYear);
+
+  const totalCredits = childTaxCredit + otherDepCredit + childCareCredit + aoCredit + energyCredit + evCredit + adoptionCredit + eitcCredit + saversCredit;
 
   // --- TOTAL TAX ---
   const grossTax    = ordinaryTax + ltcgTax + seTax;
@@ -734,7 +858,10 @@ function calculateTaxes() {
     savingsItems.push({ icon: '❤️', title: 'Charitable Contributions', desc: `${fmt(charitableCash + charitableNonCash)} donated (itemized)`, amount: fmt((charitableCash + charitableNonCash) * marginalRate) + ' saved', type: 'used' });
   }
   if (investmentLossLimit > 0) {
-    savingsItems.push({ icon: '📉', title: 'Capital Loss Deduction', desc: `${fmt(investmentLossLimit)} of investment losses offsetting income`, amount: fmt(investmentLossLimit * marginalRate) + ' saved', type: 'used' });
+    const rawLoss = n('investmentLosses');
+    const carryforward = rawLoss > lim.capitalLossLimit ? rawLoss - lim.capitalLossLimit : 0;
+    const carryNote = carryforward > 0 ? ` (${fmt(carryforward)} carries forward to next year automatically)` : '';
+    savingsItems.push({ icon: '📉', title: 'Capital Loss Deduction', desc: `${fmt(investmentLossLimit)} of investment losses offset ordinary income (IRS $3,000/yr cap)${carryNote}`, amount: fmt(investmentLossLimit * marginalRate) + ' saved', type: 'used' });
   }
   if (dependentCareFSA > 0) {
     savingsItems.push({ icon: '🏫', title: 'Dependent Care FSA', desc: `${fmt(dependentCareFSA)} pre-tax for childcare`, amount: fmt(dependentCareFSA * marginalRate) + ' saved', type: 'used' });
@@ -744,6 +871,14 @@ function calculateTaxes() {
   }
   if (seExpenses > 0) {
     savingsItems.push({ icon: '🧾', title: 'Business Expense Deductions', desc: `${fmt(seExpenses)} in self-employment expenses`, amount: fmt(seExpenses * marginalRate) + ' saved', type: 'used' });
+  }
+  if (eitcCredit > 0) {
+    const childLabel = numChildrenUnder17 === 0 ? 'no qualifying children' : `${numChildrenUnder17} qualifying child${numChildrenUnder17 > 1 ? 'ren' : ''}`;
+    savingsItems.push({ icon: '💚', title: 'Earned Income Tax Credit (EITC)', desc: `Refundable credit for earned income with ${childLabel}. Up to 40% refundable even if you owe $0 tax.`, amount: fmt(eitcCredit) + ' credit', type: 'used' });
+  }
+  if (saversCredit > 0) {
+    const saversRate = agi <= (SAVERS_CREDIT_DATA[taxYear]?.[filingStatus === 'mfj' ? 'mfj' : filingStatus === 'hoh' ? 'hoh' : 'single']?.[0] ?? 0) ? '50%' : agi <= (SAVERS_CREDIT_DATA[taxYear]?.[filingStatus === 'mfj' ? 'mfj' : filingStatus === 'hoh' ? 'hoh' : 'single']?.[1] ?? 0) ? '20%' : '10%';
+    savingsItems.push({ icon: '🌟', title: "Saver's Credit (Form 8880)", desc: `${saversRate} credit on retirement contributions — rewards low/moderate income savers`, amount: fmt(saversCredit) + ' credit', type: 'used' });
   }
 
   // --- OBBB SAVINGS ITEMS ---
@@ -823,8 +958,27 @@ function calculateTaxes() {
   if (investmentLossLimit === 0 && ltcg > 0) {
     untapped.push({ icon: '📉', title: `Tax-Loss Harvesting`, desc: `Do you have any losing investments? Selling them to realize losses can offset your ${fmt(ltcg)} in capital gains dollar for dollar, potentially saving you ${fmt(ltcg * 0.15)}.`, save: `~${fmt(ltcg * 0.15)} potential savings` });
   }
-  if (traditionalIRA > 0 && agi < 36500) {
-    untapped.push({ icon: '💫', title: `Saver's Credit (Retirement)`, desc: `Your income may qualify for the Retirement Savings Contributions Credit (Saver's Credit) — worth 10–50% of your retirement contributions. Check Form 8880.`, save: 'Up to $1,000 credit' });
+  // EITC — show if eligible but not receiving (e.g., investmentIncome too high, or just unaware)
+  const eitcData = EITC_DATA[taxYear] || EITC_DATA[2025];
+  const eitcChildIdx = Math.min(numChildrenUnder17, 3);
+  const eitcLimit = filingStatus === 'mfj' ? eitcData.children[eitcChildIdx].limitMFJ : eitcData.children[eitcChildIdx].limitSingle;
+  if (eitcCredit === 0 && filingStatus !== 'mfs' && agi < eitcLimit && earnedIncome > 0) {
+    if (investmentIncome > eitcData.investmentLimit) {
+      untapped.push({ icon: '💚', title: `EITC Blocked by Investment Income`, desc: `You'd otherwise qualify for the Earned Income Tax Credit, but investment income above ${fmt(eitcData.investmentLimit)} disqualifies you. Consider tax-loss harvesting or deferring investment income.`, save: 'Potentially ' + fmt(eitcData.children[eitcChildIdx].max) + ' credit' });
+    } else if (earnedIncome < eitcData.children[eitcChildIdx].earnedIncomeAmt * 0.5) {
+      untapped.push({ icon: '💚', title: `Earned Income Tax Credit (EITC)`, desc: `If you increase earned income (W-2 or self-employment) you may qualify for the EITC — a refundable credit worth up to ${fmt(eitcData.children[eitcChildIdx].max)}. Even with $0 tax owed, a refundable credit pays you directly.`, save: 'Up to ' + fmt(eitcData.children[eitcChildIdx].max) + ' refundable credit' });
+    }
+  }
+
+  // Saver's Credit — show if they have retirement contributions but didn't qualify (close to threshold)
+  const saverThresholds = SAVERS_CREDIT_DATA[taxYear]?.[filingStatus === 'mfj' ? 'mfj' : filingStatus === 'hoh' ? 'hoh' : 'single'];
+  if (saversCredit === 0 && saverThresholds && totalRetirementContribs > 0 && agi < saverThresholds[2] * 1.15) {
+    const room = saverThresholds[2] - agi;
+    if (room > 0 && room < 15000) {
+      untapped.push({ icon: '🌟', title: `Lower AGI ${fmt(room)} to Unlock Saver's Credit`, desc: `Your income is just above the Saver's Credit threshold. Contributing an extra ${fmt(room)} to a 401(k) or IRA could reduce your AGI enough to qualify for a 10–50% credit on retirement savings (Form 8880, up to $1,000 per person).`, save: 'Up to $1,000–$2,000 credit' });
+    }
+  } else if (saversCredit === 0 && saverThresholds && totalRetirementContribs === 0 && agi < saverThresholds[2]) {
+    untapped.push({ icon: '🌟', title: `Saver's Credit — Earn a Credit Just for Saving`, desc: `At your income level you qualify for the Saver's Credit (Form 8880) — 10–50% back on retirement contributions to a 401(k), IRA, or SIMPLE plan. Contribute ${fmt(filingStatus === 'mfj' ? 4000 : 2000)} to earn up to ${fmt(filingStatus === 'mfj' ? 2000 : 1000)} in tax credits.`, save: 'Up to ' + fmt(filingStatus === 'mfj' ? 2000 : 1000) + ' credit' });
   }
 
   // --- OBBB UNTAPPED OPPORTUNITIES ---
@@ -878,6 +1032,14 @@ function calculateTaxes() {
 
   actions.push({ num: 1, icon: '📅', title: `Adjust W-4 Withholding`, desc: `${netTaxDue > 2000 ? 'You owe a significant amount. Increase your W-4 withholding to avoid underpayment penalties in ' + nextYear + '.' : netTaxDue < -2000 ? 'You have a large refund. Consider reducing withholding to get more money in each paycheck instead of giving the IRS an interest-free loan.' : 'Your withholding is roughly on track. Review your W-4 each January.'}`, deadline: 'January ' + nextYear, save: 'Avoid penalties / optimize cash flow' });
 
+  // Quarterly Estimated Tax — shown when self-employed or when total tax > withholding by $1,000+
+  const quarterlyTax = Math.max(0, totalTax - federalWithheld);
+  const quarterlyPayment = Math.round(quarterlyTax / 4);
+  if (seNet > 0 || quarterlyTax > 1000) {
+    const selfEmpNote = seNet > 0 ? `Self-employed taxpayers must pay quarterly — no employer withholds for you. ` : '';
+    actions.push({ num: 2, icon: '📆', title: `Pay ${nextYear} Quarterly Estimated Taxes`, desc: `${selfEmpNote}Based on this year's liability of ${fmt(totalTax)}, pay approximately ${fmt(quarterlyPayment)} per quarter to avoid the ~7% underpayment penalty. Due dates: April 15, June 16, Sep 15 ${nextYear}, and Jan 15 ${nextYear + 1}. Use IRS Direct Pay or EFTPS (free).`, deadline: `April 15, ${nextYear} (first payment)`, save: `Avoid ~${fmt(quarterlyTax * 0.07)} underpayment penalty` });
+  }
+
   actions.push({ num: 2, icon: '🏦', title: `Set ${nextYear} 401(k) Contribution at Maximum`, desc: `On Jan 1, set your paycheck contribution to reach the ${nextYear} limit of ${fmt(nextK401)} (${taxpayerAge >= 50 ? 'including catch-up' : 'or higher if you turn 50 this year'}). This is the single most powerful tax reduction move you can make.`, deadline: 'January 1, ' + nextYear, save: fmt(nextK401 * marginalRate) + ' federal tax savings' });
 
   actions.push({ num: 3, icon: '💰', title: `Fund Your IRA Early in the Year`, desc: `Contribute ${fmt(nextIRA)} to a Traditional or Roth IRA by April 15, ${nextYear + 1}. But funding early — January ${nextYear} — maximizes the investment growth period. Traditional = tax now saved, Roth = tax-free later.`, deadline: 'April 15, ' + (nextYear + 1) + ' (or Jan ' + nextYear + ' to invest sooner)', save: fmt(nextIRA * marginalRate) + ' potential deduction' });
@@ -915,9 +1077,9 @@ function calculateTaxes() {
 
   document.getElementById('next-year-plan').innerHTML = `
     <div class="action-items">
-      ${actions.map(a => `
+      ${actions.map((a, i) => `
         <div class="action-item">
-          <div class="a-num">${a.num}</div>
+          <div class="a-num">${i + 1}</div>
           <div class="a-content">
             <div class="a-title">${a.icon} ${a.title}</div>
             <div class="a-desc">${a.desc}</div>
@@ -1051,8 +1213,10 @@ function extract1040Fields(text) {
     for (const pat of patterns) {
       const m = t.match(pat);
       if (m) {
-        const val = parseFloat(m[1].replace(/[^0-9.\-]/g, ''));
-        if (!isNaN(val) && val > 0) return val;
+        // Support both negative (losses shown in parentheses or with minus sign) and positive values
+        const raw = m[1].replace(/[^0-9.\-]/g, '');
+        const val = parseFloat(raw);
+        if (!isNaN(val) && val !== 0) return val;
       }
     }
     return 0;
