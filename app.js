@@ -733,7 +733,7 @@ function calculateTaxes() {
   }
 
   // Render prior year comparison if data was loaded
-  renderPriorYearComparison(agi, totalTax, netTaxDue, marginalRate);
+  renderPriorYearComparison(agi, totalTax, netTaxDue, marginalRate, taxYear);
 
   // --- SUMMARY CARDS ---
   document.getElementById('summary-cards').innerHTML = `
@@ -1139,6 +1139,56 @@ function calculateTaxes() {
 // Global store for prior year data (set by PDF parser or manual entry)
 let priorYearData = null;
 
+/** Merge partial prior-year objects with defaults so all provision logic can rely on keys. */
+function normalizePriorYearData(raw) {
+  const z = (v) => (typeof v === 'number' && !isNaN(v) ? v : 0);
+  return {
+    taxYear:               parseInt(raw.taxYear, 10) || 2024,
+    filingStatus:          raw.filingStatus || 'single',
+    wages:                 z(raw.wages),
+    agi:                   z(raw.agi),
+    taxableIncome:         z(raw.taxableIncome),
+    totalTax:              z(raw.totalTax),
+    federalWithheld:       z(raw.federalWithheld),
+    refund:                z(raw.refund),
+    deductionType:         raw.deductionType || 'standard',
+    deductionAmount:       z(raw.deductionAmount),
+    standardDeduction:     z(raw.standardDeduction),
+    itemizedDeduction:     z(raw.itemizedDeduction),
+    studentLoan:           z(raw.studentLoan),
+    selfEmployed:          z(raw.selfEmployed),
+    iraDeduction:          z(raw.iraDeduction),
+    mortgageInterest:      z(raw.mortgageInterest),
+    charitableDeduct:      z(raw.charitableDeduct),
+    saltDeduct:            z(raw.saltDeduct),
+    k401:                  z(raw.k401),
+    hsa:                   z(raw.hsa),
+    ctc:                   z(raw.ctc),
+    numDependents:         z(raw.numDependents),
+    numUnder17:            z(raw.numUnder17),
+    numCollege:            z(raw.numCollege),
+    childcareExpenses:     z(raw.childcareExpenses),
+    educationCredit:       z(raw.educationCredit),
+    eitc:                  z(raw.eitc),
+    dividends:             z(raw.dividends),
+    ltcg:                  z(raw.ltcg),
+    stcg:                  z(raw.stcg),
+    rentalNet:             z(raw.rentalNet),
+    medicalSchA:           z(raw.medicalSchA),
+    propertyTax:           z(raw.propertyTax),
+    stateIncomeTax:        z(raw.stateIncomeTax),
+    investmentInterest:    z(raw.investmentInterest),
+    educatorExpenses:      z(raw.educatorExpenses),
+    sepSimple:             z(raw.sepSimple),
+    dependentCareFSA:      z(raw.dependentCareFSA),
+    stateRefundTaxable:    z(raw.stateRefundTaxable),
+    obbbTips:              z(raw.obbbTips),
+    obbbOvertime:          z(raw.obbbOvertime),
+    obbbAutoLoan:          z(raw.obbbAutoLoan),
+    rothIRA:               z(raw.rothIRA)
+  };
+}
+
 /* ---- PDF.js SETUP ---- */
 function getPDFLib() {
   const lib = window['pdfjs-dist/build/pdf'];
@@ -1182,7 +1232,7 @@ async function handlePDFUpload(file) {
     const pdf  = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
     let fullText = '';
 
-    for (let p = 1; p <= Math.min(pdf.numPages, 6); p++) {
+    for (let p = 1; p <= Math.min(pdf.numPages, 14); p++) {
       const page    = await pdf.getPage(p);
       const content = await page.getTextContent();
       // Keep items in rough Y-order for number extraction
@@ -1225,8 +1275,8 @@ function extract1040Fields(text) {
   // Detect tax year from the document
   const yearM = t.match(/(?:Form 1040|U\.S\. Individual).*?(20\d\d)/i)
               || t.match(/Tax Year (20\d\d)/i)
-              || t.match(/\b(202[0-4])\b/);
-  const taxYear = yearM ? parseInt(yearM[1]) : 2024;
+              || t.match(/\b(202[0-6])\b/);
+  const taxYear = yearM ? parseInt(yearM[1], 10) : 2024;
 
   // Filing status detection
   let filingStatus = 'single';
@@ -1298,49 +1348,116 @@ function extract1040Fields(text) {
   // Child Tax Credit
   const ctc = grab([/child tax credit[^0-9]+([\d]{2,})/i, /(?:8812|additional child)[^0-9]+([\d]{2,})/i]);
 
-  // Number of dependents
+  // Number of dependents / children
   const dependentsM = t.match(/(?:number of|qualifying) (?:dependents|children)[^\d]*([\d]{1,2})/i);
-  const numDependents = dependentsM ? parseInt(dependentsM[1]) : 0;
+  const numDependents = dependentsM ? parseInt(dependentsM[1], 10) : 0;
+  const ctcChildrenM = t.match(/(?:children|dependents).*?(?:under|age).*?17[^\d]*([\d]{1,2})/i);
+  const numUnder17 = ctcChildrenM ? parseInt(ctcChildrenM[1], 10) : (numDependents > 0 ? numDependents : 0);
+
+  // Credits & other schedules
+  const educationCredit = grab([
+    /(?:american opportunity|education credit|Form 8863)[^0-9]+([\d]{2,})/i,
+    /(?:AOTC|LLC)[^0-9]+([\d]{2,})/i
+  ]);
+  const childcareExpenses = grab([
+    /(?:Form 2441|dependent care|child.?care credit)[^0-9]+([\d]{3,})/i,
+    /care expenses[^0-9]+([\d]{3,})/i
+  ]);
+  const eitc = grab([/earned income credit[^0-9]+([\d]{2,})/i, /EIC[^0-9]+([\d]{2,})/i, /EITC[^0-9]+([\d]{2,})/i]);
+  const dividends = grab([/qualified dividends[^0-9]+([\d]{2,})/i, /ordinary dividends[^0-9]+([\d]{2,})/i]);
+  const ltcgAmt = grab([/(?:net )?long.?term capital gain[^0-9]+([\d]{2,})/i, /Schedule D[^0-9]+([\d]{3,})/i]);
+  const stcgAmt = grab([/short.?term capital gain[^0-9]+([\d]{2,})/i]);
+  const rentalNet = grab([/(?:Schedule E|rental).*?(?:income|net)[^0-9]+([\d]{2,})/i, /rental real estate[^0-9]+([\d]{2,})/i]);
+  const medicalSchA = grab([/(?:medical|dental).*?(?:expenses|deduction)[^0-9]+([\d]{3,})/i]);
+  const propertyTax = grab([/real estate taxes[^0-9]+([\d]{2,})/i, /property taxes[^0-9]+([\d]{2,})/i]);
+  const stateIncomeTax = grab([/state and local income taxes[^0-9]+([\d]{2,})/i, /state income tax[^0-9]+([\d]{2,})/i]);
+  const investmentInterest = grab([/investment interest[^0-9]+([\d]{2,})/i]);
+  const educatorExpenses = grab([/educator expenses[^0-9]+([\d]{1,4})/i]);
+  const sepSimple = grab([/(?:SEP|SIMPLE)[^0-9]+([\d]{2,})/i, /self.?employed.*?401[^0-9]+([\d]{2,})/i]);
+
+  const stateRefundTaxable = grab([/(?:state|local).*?refund[^0-9]+([\d]{2,})/i, /taxable.*?state.*?refund[^0-9]+([\d]{2,})/i]);
+
+  let obbbTips = 0;
+  let obbbOvertime = 0;
+  let obbbAutoLoan = 0;
+  if (taxYear >= 2025) {
+    obbbTips = grab([/(?:qualified )?tips[^0-9]+([\d]{2,})/i, /no tax on tips[^0-9]+([\d]{2,})/i]);
+    obbbOvertime = grab([/(?:qualified )?overtime[^0-9]+([\d]{2,})/i]);
+    obbbAutoLoan = grab([/(?:vehicle|car|auto).*?loan interest[^0-9]+([\d]{2,})/i, /passenger vehicle[^0-9]+([\d]{2,})/i]);
+  }
+
+  const numCollege = educationCredit > 500 ? Math.min(4, Math.max(1, Math.round(educationCredit / 2000))) : 0;
 
   const deductionType   = itemizedDeduction > standardDeduction ? 'itemized' : 'standard';
   const deductionAmount = Math.max(standardDeduction, itemizedDeduction);
 
-  return {
+  return normalizePriorYearData({
     taxYear, filingStatus, wages, agi, taxableIncome,
     totalTax, federalWithheld, refund,
     deductionType, deductionAmount, standardDeduction, itemizedDeduction,
     studentLoan, selfEmployed, iraDeduction,
     mortgageInterest, charitableDeduct, saltDeduct,
-    k401, hsa, ctc, numDependents
-  };
+    k401, hsa, ctc,
+    numDependents,
+    numUnder17,
+    numCollege,
+    childcareExpenses,
+    educationCredit,
+    eitc,
+    dividends,
+    ltcg: ltcgAmt,
+    stcg: stcgAmt,
+    rentalNet,
+    medicalSchA,
+    propertyTax,
+    stateIncomeTax,
+    investmentInterest,
+    educatorExpenses,
+    sepSimple,
+    dependentCareFSA: 0,
+    stateRefundTaxable,
+    obbbTips,
+    obbbOvertime,
+    obbbAutoLoan,
+    rothIRA: 0
+  });
 }
 
 /* ---- SHOW PARSE RESULTS IN MODAL ---- */
 function showParseResults(data, container) {
   container.classList.remove('hidden');
+  const d = data;
   const rows = [
-    ['Tax Year Detected',   data.taxYear],
-    ['Filing Status',       data.filingStatus.toUpperCase()],
-    ['Total Wages',         fmt(data.wages)],
-    ['Adjusted Gross Income', fmt(data.agi)],
-    ['Taxable Income',      fmt(data.taxableIncome)],
-    ['Total Federal Tax',   fmt(data.totalTax)],
-    ['Federal Withheld',    fmt(data.federalWithheld)],
-    ['Refund / (Owed)',     data.refund >= 0 ? fmt(data.refund) + ' refund' : fmt(-data.refund) + ' owed'],
-    ['Deduction Used',      data.deductionType === 'itemized' ? 'Itemized — ' + fmt(data.deductionAmount) : 'Standard — ' + fmt(data.deductionAmount)],
-    data.k401          ? ['401(k) Contribution',  fmt(data.k401)]          : null,
-    data.iraDeduction  ? ['IRA Deduction',         fmt(data.iraDeduction)]  : null,
-    data.hsa           ? ['HSA Contribution',      fmt(data.hsa)]           : null,
-    data.mortgageInterest ? ['Mortgage Interest',  fmt(data.mortgageInterest)] : null,
-    data.charitableDeduct ? ['Charitable Donations', fmt(data.charitableDeduct)] : null,
-    data.ctc           ? ['Child Tax Credit',      fmt(data.ctc)]           : null,
+    ['Tax Year Detected',   d.taxYear],
+    ['Filing Status',       d.filingStatus.toUpperCase()],
+    ['Total Wages',         fmt(d.wages)],
+    ['Adjusted Gross Income', fmt(d.agi)],
+    ['Taxable Income',      fmt(d.taxableIncome)],
+    ['Total Federal Tax',   fmt(d.totalTax)],
+    ['Federal Withheld',    fmt(d.federalWithheld)],
+    ['Refund / (Owed)',     d.refund >= 0 ? fmt(d.refund) + ' refund' : fmt(-d.refund) + ' owed'],
+    ['Deduction Used',      d.deductionType === 'itemized' ? 'Itemized — ' + fmt(d.deductionAmount) : 'Standard — ' + fmt(d.deductionAmount)],
+    d.k401 ? ['401(k) Contribution', fmt(d.k401)] : null,
+    d.iraDeduction ? ['IRA Deduction', fmt(d.iraDeduction)] : null,
+    d.hsa ? ['HSA Contribution', fmt(d.hsa)] : null,
+    d.mortgageInterest ? ['Mortgage Interest', fmt(d.mortgageInterest)] : null,
+    d.charitableDeduct ? ['Charitable Donations', fmt(d.charitableDeduct)] : null,
+    d.ctc ? ['Child Tax Credit', fmt(d.ctc)] : null,
+    d.childcareExpenses ? ['Dependent Care (2441)', fmt(d.childcareExpenses)] : null,
+    d.educationCredit ? ['Education Credits (8863)', fmt(d.educationCredit)] : null,
+    d.eitc ? ['Earned Income Credit', fmt(d.eitc)] : null,
+    d.dividends ? ['Dividends', fmt(d.dividends)] : null,
+    d.ltcg ? ['Long-Term Capital Gains', fmt(d.ltcg)] : null,
+    d.rentalNet ? ['Net Rental (Sch E)', fmt(d.rentalNet)] : null,
+    d.selfEmployed ? ['Self-Employment (Sch C)', fmt(d.selfEmployed)] : null,
+    d.taxYear >= 2025 && (d.obbbTips || d.obbbOvertime || d.obbbAutoLoan) ? ['OBBB (tips/OT/auto)', [d.obbbTips, d.obbbOvertime, d.obbbAutoLoan].map((x, i) => ['T', 'OT', 'A'][i] + ':' + fmt(x || 0)).join(' · ')] : null
   ].filter(Boolean);
 
-  const anyData = data.wages > 0 || data.agi > 0 || data.totalTax > 0;
+  const anyData = d.wages > 0 || d.agi > 0 || d.totalTax > 0;
 
   container.innerHTML = anyData ? `
     <div class="parse-success">
-      <div class="parse-success-title">✅ Successfully extracted ${rows.length} fields from your ${data.taxYear} return</div>
+      <div class="parse-success-title">✅ Successfully extracted ${rows.length} fields from your ${d.taxYear} return</div>
       <table class="parse-table">
         ${rows.map(([k,v]) => `<tr><td>${k}</td><td><strong>${v}</strong></td></tr>`).join('')}
       </table>
@@ -1365,19 +1482,39 @@ function showParseResults(data, container) {
 
 /* ---- APPLY PRIOR YEAR DATA (from PDF or manual) ---- */
 function applyPriorYearData(data) {
-  priorYearData = data;
+  priorYearData = normalizePriorYearData(data);
 
   // Auto-fill form fields where we have data
-  const set = (id, val) => { const el = document.getElementById(id); if (el && val > 0) el.value = val; };
-  set('w2Income',            data.wages);
-  set('mortgageInterest',    data.mortgageInterest);
-  set('charitableCash',      data.charitableDeduct);
-  set('k401Contrib',         data.k401);
-  set('traditionalIRAContrib', data.iraDeduction);
-  set('hsaContrib',          data.hsa);
-  set('studentLoanInterest', data.studentLoan);
-  set('federalWithheld',     data.federalWithheld);
-  if (data.numDependents > 0) set('numChildrenUnder17', data.numDependents);
+  const set = (id, val) => { const el = document.getElementById(id); if (el && val > 0) el.value = Math.round(val); };
+  const py = priorYearData;
+  set('w2Income',              py.wages);
+  set('mortgageInterest',      py.mortgageInterest);
+  set('charitableCash',        py.charitableDeduct);
+  set('k401Contrib',           py.k401);
+  set('traditionalIRAContrib', py.iraDeduction);
+  set('hsaContrib',            py.hsa);
+  set('studentLoanInterest',   py.studentLoan);
+  set('federalWithheld',       py.federalWithheld);
+  set('childcareExpenses',     py.childcareExpenses);
+  if (py.numCollege > 0 || py.educationCredit > 0) {
+    set('tuitionPaid', py.numCollege > 0 ? 5000 * py.numCollege : 5000);
+  }
+  set('dividends',             py.dividends);
+  set('longTermCapGains',      py.ltcg);
+  set('shortTermCapGains',     py.stcg);
+  set('rentalIncome',          py.rentalNet);
+  set('selfEmploymentIncome',  py.selfEmployed);
+  set('educatorExpenses',      py.educatorExpenses);
+  set('propertyTax',           py.propertyTax);
+  set('stateTaxPaid',          py.stateIncomeTax);
+  set('tipIncome',             py.obbbTips);
+  set('overtimePay',           py.obbbOvertime);
+  set('autoLoanInterest',      py.obbbAutoLoan);
+  if (py.numUnder17 > 0) set('numChildrenUnder17', py.numUnder17);
+  else if (py.numDependents > 0) set('numChildrenUnder17', py.numDependents);
+  if (py.numCollege > 0) set('numChildrenCollege', py.numCollege);
+  if (py.dependentCareFSA > 0) set('dependentCarefsaContrib', py.dependentCareFSA);
+  if (py.sepSimple > 0) set('sepIRAContrib', py.sepSimple);
 
   // Set filing status
   const fsMap = { single: 0, mfj: 1, mfs: 2, hoh: 3 };
@@ -1399,8 +1536,8 @@ function applyPriorYearData(data) {
 /* ---- MANUAL ENTRY HANDLER ---- */
 function analyzePriorYear() {
   const getNum = id => parseFloat(document.getElementById(id)?.value) || 0;
-  const data = {
-    taxYear:           parseInt(document.getElementById('py-year')?.value) || 2024,
+  const data = normalizePriorYearData({
+    taxYear:           parseInt(document.getElementById('py-year')?.value, 10) || 2024,
     filingStatus:      document.getElementById('py-filing')?.value || 'single',
     wages:             getNum('py-wages'),
     agi:               getNum('py-agi'),
@@ -1414,13 +1551,34 @@ function analyzePriorYear() {
     ctc:               getNum('py-ctc'),
     mortgageInterest:  getNum('py-mortgage'),
     charitableDeduct:  getNum('py-charity'),
-    federalWithheld:   0,
+    federalWithheld:   getNum('py-withheld'),
     studentLoan:       0,
-    selfEmployed:      0,
-    saltDeduct:        0,
+    selfEmployed:      getNum('py-self-employment'),
+    saltDeduct:        getNum('py-property-tax') + getNum('py-state-tax'),
     taxableIncome:     0,
-    numDependents:     0
-  };
+    numDependents:     getNum('py-num-under17'),
+    numUnder17:        getNum('py-num-under17'),
+    numCollege:        getNum('py-num-college'),
+    childcareExpenses: getNum('py-childcare'),
+    educationCredit:   getNum('py-education'),
+    eitc:              getNum('py-eitc'),
+    dividends:         getNum('py-dividends'),
+    ltcg:              getNum('py-ltcg'),
+    stcg:              getNum('py-stcg'),
+    rentalNet:         getNum('py-rental'),
+    medicalSchA:       getNum('py-medical'),
+    propertyTax:       getNum('py-property-tax'),
+    stateIncomeTax:    getNum('py-state-tax'),
+    investmentInterest:getNum('py-inv-interest'),
+    educatorExpenses:  getNum('py-educator'),
+    sepSimple:         getNum('py-sep'),
+    dependentCareFSA:  getNum('py-dcfsa'),
+    stateRefundTaxable:getNum('py-state-refund-taxable'),
+    obbbTips:          getNum('py-tips'),
+    obbbOvertime:      getNum('py-overtime'),
+    obbbAutoLoan:      getNum('py-auto-loan'),
+    rothIRA:           0
+  });
   applyPriorYearData(data);
 }
 
@@ -1445,8 +1603,129 @@ function showPriorAnalysisBar(data) {
   bar.classList.remove('hidden');
 }
 
+function stdDedForPriorYear(year, filingStatus) {
+  const d = TAX_DATA[year];
+  if (d && d.standardDeduction[filingStatus]) return d.standardDeduction[filingStatus];
+  if (year >= 2025) {
+    return filingStatus === 'mfj' ? 31500 : filingStatus === 'hoh' ? 23625 : 15750;
+  }
+  return filingStatus === 'mfj' ? 29200 : filingStatus === 'hoh' ? 21900 : 14600;
+}
+
+/** Build categorized filing provisions from prior return + selected filing year */
+function buildPriorYearFilingProvisions(py, marginalRate, selectedTaxYear) {
+  const cats = [];
+  const fs = py.filingStatus || 'single';
+  const ty = py.taxYear || 2024;
+  const obbbYears = selectedTaxYear >= 2025 && ty >= 2025;
+
+  // —— 1. Forms & information returns ——
+  const forms = [];
+  if (py.wages > 0) {
+    forms.push({ icon: '📋', title: 'W-2 wage reconciliation', detail: `Last year: ${fmt(py.wages)} in Box 1 wages. This year, verify all employers sent W-2s by Jan 31; match Box 12 codes (D = 401k, W = HSA, DD = health insurance) for consistency with your entries.`, ref: 'Form W-2' });
+  }
+  if (py.dividends > 0 || py.ltcg > 0 || py.stcg > 0) {
+    forms.push({ icon: '📈', title: 'Investment 1099s', detail: `You had investment income. Collect 1099-DIV, 1099-B, and brokerage consolidated 1099s. Qualified dividends and long-term gains use lower rates — ensure cost basis is reported (1099-B Box A/B).`, ref: '1099-DIV / 1099-B' });
+  }
+  if (py.selfEmployed > 0) {
+    forms.push({ icon: '📒', title: 'Self-employment documentation', detail: `Schedule C net was about ${fmt(py.selfEmployed)}. Keep mileage logs, receipts, and separate business accounts. Consider SEP-IRA or Solo 401(k) to shelter more than IRA limits allow.`, ref: 'Sch C / SE' });
+  }
+  if (py.rentalNet > 0) {
+    forms.push({ icon: '🏘️', title: 'Rental property records', detail: `Rental income reported (~${fmt(py.rentalNet)}). Maintain depreciation schedules, repair vs. improvement distinction, and track days of personal use.`, ref: 'Schedule E' });
+  }
+  if (py.mortgageInterest > 0) {
+    forms.push({ icon: '🏠', title: 'Mortgage interest (Form 1098)', detail: `You deducted mortgage interest. Lenders send 1098 by Jan 31; verify loan limits ($750k acquisition debt) still apply if you refinanced.`, ref: 'Form 1098' });
+  }
+  if (forms.length) cats.push({ id: 'forms', title: 'Forms & information returns', items: forms });
+
+  // —— 2. Credits & dependents ——
+  const credits = [];
+  if (py.ctc > 0 || py.numUnder17 > 0) {
+    credits.push({ icon: '👶', title: 'Child Tax Credit & dependents', detail: `Document SSNs for every qualifying child. CTC phases out at higher incomes; if income rose, expect a smaller credit unless you reduce AGI with 401(k)/HSA.`, ref: 'Schedule 8812' });
+  }
+  if (py.childcareExpenses > 0 || py.dependentCareFSA > 0) {
+    credits.push({ icon: '🧒', title: 'Child and dependent care', detail: `You had care expenses or DCFSA. Provider EIN + address required on Form 2441. DCFSA ${fmt(py.dependentCareFSA || 0)} reduces eligible expenses dollar-for-dollar for the credit.`, ref: 'Form 2441' });
+  }
+  if (py.educationCredit > 0 || py.numCollege > 0) {
+    credits.push({ icon: '🎓', title: 'Education credits (AOTC / LLC)', detail: `American Opportunity Credit is limited to 4 years per student; Lifetime Learning has different rules. Keep Form 1098-T from each institution.`, ref: 'Form 8863' });
+  }
+  if (py.eitc > 0) {
+    credits.push({ icon: '💵', title: 'Earned Income Credit', detail: `You claimed EITC. PATH Act delays refunds claiming EITC until mid-February. Income limits change yearly — verify eligibility if family size or wages changed.`, ref: 'Schedule EIC' });
+  }
+  if (credits.length) cats.push({ id: 'credits', title: 'Credits to claim again (with proof)', items: credits });
+
+  // —— 3. Deductions: itemized vs standard & SALT ——
+  const ded = [];
+  const stdLast = stdDedForPriorYear(ty, fs);
+  if (py.deductionType === 'itemized') {
+    const salt = (py.propertyTax || 0) + (py.stateIncomeTax || 0);
+    ded.push({ icon: '📑', title: 'Itemized — SALT cap', detail: `State/local taxes + property tax are capped at ${fmt(10000)} combined. Your Schedule A items should be tracked again; bunching charitable gifts may help in alternate years.`, ref: 'Schedule A' });
+    if (py.stateRefundTaxable > 0) {
+      ded.push({ icon: '↩️', title: 'Taxable state refund (recapture)', detail: `You may have ${fmt(py.stateRefundTaxable)} taxable state refund on Schedule 1 if you itemized last year and received a state refund — same logic applies this year if you itemize again.`, ref: 'Sch 1, Line 1' });
+    }
+  } else {
+    ded.push({ icon: '⚖️', title: 'Standard vs. itemized', detail: `You used the standard deduction (~${fmt(py.deductionAmount || stdLast)}). Compare each year: mortgage ${fmt(py.mortgageInterest)} + charity ${fmt(py.charitableDeduct)} + SALT (capped) vs. new standard ${fmt(stdDedForPriorYear(selectedTaxYear, fs))} for ${selectedTaxYear}.`, ref: '1040 Line 12' });
+  }
+  if (py.medicalSchA > 0) {
+    ded.push({ icon: '🏥', title: 'Medical expense deduction', detail: `Only amounts over 7.5% of AGI count. If AGI drops this year, more medical may become deductible if you itemize.`, ref: 'Schedule A' });
+  }
+  if (ded.length) cats.push({ id: 'deductions', title: 'Deduction strategy from your last return', items: ded });
+
+  // —— 4. Retirement & health ——
+  const ret = [];
+  const k401Lim = (TAX_DATA[selectedTaxYear] || TAX_DATA[2025]).limits.k401.under50;
+  if (py.wages > 0 && py.k401 < k401Lim * 0.85) {
+    ret.push({ icon: '🏦', title: '401(k) deferral room', detail: `Prior contribution ${fmt(py.k401)} vs. ${fmt(k401Lim)} limit for ${selectedTaxYear}. Increasing deferrals reduces W-2 Box 1 and can lower marginal rate on credits that phase out with AGI.`, ref: 'W-2 Box 12 code D' });
+  }
+  if (!py.hsa && py.wages > 0) {
+    ret.push({ icon: '🩺', title: 'HSA eligibility', detail: 'No HSA detected on prior data. If you enroll in a qualified HDHP this year, fund an HSA by the filing deadline for a triple tax advantage.', ref: 'Form 8889' });
+  }
+  if (py.iraDeduction > 0 || py.sepSimple > 0) {
+    ret.push({ icon: '💰', title: 'IRA / SEP', detail: `Prior IRA ${fmt(py.iraDeduction)} / SEP ${fmt(py.sepSimple)}. Watch combined limits and deduction phase-outs if covered by a workplace plan.`, ref: 'Form 8606 if nondeductible IRA' });
+  }
+  if (ret.length) cats.push({ id: 'retirement', title: 'Retirement & health accounts', items: ret });
+
+  // —— 5. Withholding & estimates ——
+  const wh = [];
+  if (py.refund > 2500) {
+    wh.push({ icon: '📅', title: 'Adjust Form W-4', detail: `Large refund (${fmt(py.refund)}) means over-withholding. Use IRS Tax Withholding Estimator to update W-4 early in the year.`, ref: 'Form W-4' });
+  }
+  if (py.refund < 0 || (py.totalTax - py.federalWithheld) > 1000) {
+    wh.push({ icon: '📆', title: 'Estimated taxes (1040-ES)', detail: 'You owed tax at filing or had a balance. If self-employed or investment income grows, pay quarterly estimates to avoid underpayment penalties.', ref: 'Form 1040-ES' });
+  }
+  if (wh.length) cats.push({ id: 'withholding', title: 'Withholding & estimated tax', items: wh });
+
+  // —— 6. OBBB (2025+) ——
+  if (obbbYears) {
+    const obbb = [];
+    obbb.push({ icon: '📎', title: 'Schedule 1-A (OBBB)', detail: 'Tips, overtime, car loan interest, and senior bonus are reported on new Schedule 1-A through 2028. Without it, new deductions are disallowed.', ref: 'Schedule 1-A' });
+    if (!py.obbbTips) {
+      obbb.push({ icon: '💵', title: 'Tips deduction (if applicable)', detail: 'If you receive tips in a customary occupation, you may deduct up to $25,000 (with MAGI phase-out). Report on Schedule 1-A; keep W-2 and employer tip records.', ref: 'OBBB §70201' });
+    }
+    if (!py.obbbOvertime && py.wages > 40000) {
+      obbb.push({ icon: '⏰', title: 'Overtime deduction', detail: 'The premium half of time-and-a-half may be deductible up to $12,500 single / $25,000 MFJ.', ref: 'OBBB §70202' });
+    }
+    if (!py.obbbAutoLoan) {
+      obbb.push({ icon: '🚗', title: 'US-assembled vehicle loan interest', detail: 'Up to $10,000/year for qualifying personal-use vehicles; include VIN on return.', ref: 'OBBB §70203' });
+    }
+    cats.push({ id: 'obbb', title: 'One Big Beautiful Bill (this filing year)', items: obbb });
+  }
+
+  // —— 7. Investments & carryovers ——
+  const inv = [];
+  if (py.ltcg > 0 || py.stcg > 0) {
+    inv.push({ icon: '📊', title: 'Capital gains timing', detail: `Prior gains ~ LTCG ${fmt(py.ltcg)} / ST ${fmt(py.stcg)}. Hold appreciated assets >1 year for LTCG rates; harvest losses against gains (up to $3,000 ordinary).`, ref: 'Schedule D' });
+  }
+  if (py.investmentInterest > 0) {
+    inv.push({ icon: '🔗', title: 'Investment interest', detail: 'Interest must trace to taxable investment income; Form 4952 if complex.', ref: 'Form 4952' });
+  }
+  if (inv.length) cats.push({ id: 'invest', title: 'Investments & capital gains', items: inv });
+
+  return cats;
+}
+
 /* ---- YEAR-OVER-YEAR COMPARISON (called inside calculateTaxes) ---- */
-function renderPriorYearComparison(currentAGI, currentTax, currentRefund, marginalRate) {
+function renderPriorYearComparison(currentAGI, currentTax, currentRefund, marginalRate, selectedTaxYear) {
   const panel = document.getElementById('py-comparison-panel');
   if (!panel || !priorYearData) { if (panel) panel.classList.add('hidden'); return; }
 
@@ -1463,37 +1742,75 @@ function renderPriorYearComparison(currentAGI, currentTax, currentRefund, margin
       : `<span style="color:${col}">${up ? '▲' : '▼'} ${fmt(Math.abs(val))}</span>`;
   };
 
+  const stdRef = stdDedForPriorYear(py.taxYear, py.filingStatus);
+
   // Find missed opportunities from prior year
   const missed = [];
-  const k401Limit2025 = 23500;
-  if ((py.k401 || 0) < k401Limit2025 * 0.5) {
-    const room = k401Limit2025 - (py.k401 || 0);
-    missed.push({ icon: '🏦', text: `You contributed ${py.k401 ? fmt(py.k401) : 'nothing'} to your 401(k) last year. The ${py.taxYear} limit was ${fmt(23000)}. You left ${fmt(room)} of tax-deferred space unused — potentially ${fmt(room * marginalRate)} in lost tax savings.` });
+  const yKey = Math.min(Math.max(py.taxYear, 2024), 2026);
+  const k401LimPY = (TAX_DATA[yKey] || TAX_DATA[2025]).limits.k401.under50;
+  if (py.wages > 0 && (py.k401 || 0) < k401LimPY * 0.5) {
+    const room = k401LimPY - (py.k401 || 0);
+    missed.push({ icon: '🏦', text: `401(k): you contributed ${py.k401 ? fmt(py.k401) : 'little or nothing'} vs. a ${fmt(k401LimPY)} limit for ${py.taxYear}. Unused room ≈ ${fmt(room)} deferral — roughly ${fmt(room * marginalRate)} federal tax at your current marginal rate if you had maxed out.` });
   }
-  if (!py.hsa || py.hsa === 0) {
-    missed.push({ icon: '🏥', text: `No HSA contribution detected in your ${py.taxYear} return. If you had a high-deductible health plan, you missed up to ${fmt(4150)} (self) / ${fmt(8300)} (family) in triple-tax-free savings.` });
+  if (!py.hsa && py.wages > 0) {
+    missed.push({ icon: '🏥', text: `No HSA on your ${py.taxYear} data. With a qualified HDHP you could have funded up to ${fmt((TAX_DATA[py.taxYear] || TAX_DATA[2025]).limits.hsa.family)} (family) pre-tax.` });
   }
-  if (py.deductionType === 'standard' && (py.mortgageInterest > 0 || py.charitableDeduct > 0)) {
-    const potentialItemized = (py.mortgageInterest || 0) + (py.charitableDeduct || 0) + (py.saltDeduct || 0);
-    const stdDed2024 = py.filingStatus === 'mfj' ? 29200 : 14600;
-    if (potentialItemized > stdDed2024 * 0.8) {
-      missed.push({ icon: '📋', text: `You took the standard deduction (${fmt(stdDed2024)}) but had ${fmt(potentialItemized)} in itemizable expenses (mortgage interest + charity). Consider bunching more deductions into one year to push over the threshold.` });
+  if (py.deductionType === 'standard' && ((py.mortgageInterest || 0) + (py.charitableDeduct || 0) + (py.propertyTax || 0) + (py.stateIncomeTax || 0)) > 0) {
+    const potentialItemized = (py.mortgageInterest || 0) + (py.charitableDeduct || 0) + Math.min(10000, (py.propertyTax || 0) + (py.stateIncomeTax || 0));
+    if (potentialItemized > stdRef * 0.85) {
+      missed.push({ icon: '📋', text: `Standard deduction (${fmt(stdRef)}) vs. roughly ${fmt(potentialItemized)} in Schedule A-type expenses. Bunch charitable contributions or plan timing to itemize in a high-expense year.` });
     }
   }
-  if (!py.iraDeduction || py.iraDeduction === 0) {
-    missed.push({ icon: '💰', text: `No IRA deduction found in your ${py.taxYear} return. If income-eligible, contributing ${fmt(7000)} to a Traditional IRA (${fmt(8000)} if 50+) could have saved you ${fmt(7000 * marginalRate)}.` });
+  if (py.wages > 0 && !(py.iraDeduction > 0) && (py.k401 || 0) < k401LimPY * 0.9) {
+    missed.push({ icon: '💰', text: `No traditional IRA deduction in the data. If under IRS income limits (and spouse rules), ${fmt(7000)} IRA (${fmt(8000)} at 50+) could save ~${fmt(7000 * marginalRate)}.` });
   }
   if (py.refund > 3000) {
-    missed.push({ icon: '💸', text: `You received a ${fmt(py.refund)} refund — that's an interest-free loan to the IRS. Adjust your W-4 this year to get that money in each paycheck instead. Use the IRS Withholding Estimator.` });
+    missed.push({ icon: '💸', text: `${fmt(py.refund)} refund — consider W-4 adjustment so you are not lending the IRS money interest-free.` });
   }
-  if (py.totalTax > 0 && py.agi > 0 && (py.totalTax / py.agi) > 0.18) {
-    missed.push({ icon: '📉', text: `Your effective tax rate was ${((py.totalTax/py.agi)*100).toFixed(1)}% — above average for your income. This year, focus on maximizing above-the-line deductions (401k, HSA, IRA) to lower your AGI before other deductions apply.` });
+  if (py.totalTax > 0 && py.agi > 0 && (py.totalTax / py.agi) > 0.2) {
+    missed.push({ icon: '📉', text: `Effective rate ${((py.totalTax / py.agi) * 100).toFixed(1)}% — prioritize above-the-line items (401k, HSA, SEP) to lower AGI.` });
   }
+  if (py.childcareExpenses > 0 && py.dependentCareFSA === 0 && py.childcareExpenses > 3000) {
+    missed.push({ icon: '🏫', text: `You had ${fmt(py.childcareExpenses)} in care expenses but no DCFSA in the data. A Dependent Care FSA saves payroll + income tax on up to $5,000.` });
+  }
+  if (py.eitc > 0) {
+    missed.push({ icon: '⏳', text: 'You received EITC — remember refunds with EITC are held under PATH Act until mid-February; file early for faster processing after release.' });
+  }
+  if (py.stateRefundTaxable > 0 && py.deductionType === 'itemized') {
+    missed.push({ icon: '📌', text: `Taxable state refund (${fmt(py.stateRefundTaxable)}) may flow to this year's income — same if you itemize again and receive a state refund.` });
+  }
+  if (py.selfEmployed > 0 && !(py.sepSimple > 0)) {
+    missed.push({ icon: '🏢', text: `Self-employment income without a large SEP/Solo 401(k) contribution in the data — you can often shelter ~25% of net SE income up to the annual cap.` });
+  }
+
+  const provisionCats = buildPriorYearFilingProvisions(py, marginalRate, selectedTaxYear);
+  const provisionsHTML = provisionCats.length ? `
+    <div class="pyc-provisions-wrap">
+      <div class="pyc-provisions-title">📌 Filing provisions for ${selectedTaxYear} (from your ${py.taxYear} return)</div>
+      <div class="pyc-provisions-sub">Actionable items tied to what you actually filed before — forms to gather, strategies to repeat or fix, and IRS references.</div>
+      ${provisionCats.map(cat => `
+        <div class="pyc-prov-cat">
+          <div class="pyc-prov-cat-head">${cat.title}</div>
+          <div class="pyc-prov-list">
+            ${cat.items.map(it => `
+              <div class="pyc-prov-item">
+                <div>
+                  <strong>${it.icon} ${it.title}</strong>
+                  ${it.detail}
+                  ${it.ref ? `<span class="pyc-prov-ref">${it.ref}</span>` : ''}
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  ` : '';
 
   panel.classList.remove('hidden');
   panel.innerHTML = `
     <div class="results-panel py-compare-panel">
-      <h3>📊 Year-Over-Year Comparison: ${py.taxYear} → ${py.taxYear + 1}</h3>
+      <h3>📊 Year-Over-Year Comparison: ${py.taxYear} → ${selectedTaxYear}</h3>
       <div class="pyc-grid">
         <div class="pyc-col">
           <div class="pyc-year-label">${py.taxYear} (Prior Year)</div>
@@ -1520,9 +1837,10 @@ function renderPriorYearComparison(currentAGI, currentTax, currentRefund, margin
           <div class="pyc-row"><span>Effective Rate</span><strong>${currentAGI > 0 ? ((currentTax/currentAGI)*100).toFixed(1) : '—'}%</strong></div>
         </div>
       </div>
+      ${provisionsHTML}
       ${missed.length > 0 ? `
         <div class="pyc-missed-section">
-          <div class="pyc-missed-title">🔍 What You Missed Last Year — Fix It This Year</div>
+          <div class="pyc-missed-title">🔍 Gaps we spotted on last year's pattern — improve this year</div>
           <div class="pyc-missed-list">
             ${missed.map(m => `
               <div class="pyc-missed-item">
@@ -1532,7 +1850,7 @@ function renderPriorYearComparison(currentAGI, currentTax, currentRefund, margin
             `).join('')}
           </div>
         </div>
-      ` : `<div style="color:var(--success);font-weight:600;margin-top:16px;font-size:0.9rem;">🎉 Great job last year! You utilized the major opportunities. Keep it up.</div>`}
+      ` : `<div style="color:var(--success);font-weight:600;margin-top:16px;font-size:0.9rem;">🎉 Strong use of common savings levers in your prior data. Review provisions above for anything new in ${selectedTaxYear}.</div>`}
     </div>
   `;
 }

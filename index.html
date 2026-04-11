@@ -92,7 +92,8 @@
             <div class="form-group">
               <label>Prior Tax Year</label>
               <select id="py-year">
-                <option value="2024" selected>2024</option>
+                <option value="2025" selected>2025</option>
+                <option value="2024">2024</option>
                 <option value="2023">2023</option>
                 <option value="2022">2022</option>
               </select>
@@ -119,6 +120,11 @@
               <label>Total Federal Tax Paid</label>
               <div class="input-dollar"><span>$</span><input type="number" id="py-tax" placeholder="0" min="0" /></div>
               <span class="hint">Form 1040, Line 24</span>
+            </div>
+            <div class="form-group">
+              <label>Federal Tax Withheld</label>
+              <div class="input-dollar"><span>$</span><input type="number" id="py-withheld" placeholder="0" min="0" /></div>
+              <span class="hint">Form 1040, Line 25d (optional)</span>
             </div>
             <div class="form-group">
               <label>Refund Received / Amount Owed</label>
@@ -159,6 +165,95 @@
             <div class="form-group">
               <label>Charitable Donations</label>
               <div class="input-dollar"><span>$</span><input type="number" id="py-charity" placeholder="0" min="0" /></div>
+            </div>
+
+            <div class="form-group full-width manual-section-label">Schedules &amp; credits <span class="optional">(optional — improves suggestions)</span></div>
+            <div class="form-group">
+              <label>Children under 17 (for CTC)</label>
+              <input type="number" id="py-num-under17" placeholder="0" min="0" max="20" value="0" />
+            </div>
+            <div class="form-group">
+              <label>Students in college (AOTC)</label>
+              <input type="number" id="py-num-college" placeholder="0" min="0" max="10" value="0" />
+            </div>
+            <div class="form-group">
+              <label>Child / Dependent Care (Form 2441)</label>
+              <div class="input-dollar"><span>$</span><input type="number" id="py-childcare" placeholder="0" min="0" /></div>
+            </div>
+            <div class="form-group">
+              <label>Education Credits (AOTC / LLC)</label>
+              <div class="input-dollar"><span>$</span><input type="number" id="py-education" placeholder="0" min="0" /></div>
+            </div>
+            <div class="form-group">
+              <label>Earned Income Credit (EIC)</label>
+              <div class="input-dollar"><span>$</span><input type="number" id="py-eitc" placeholder="0" min="0" /></div>
+            </div>
+            <div class="form-group">
+              <label>Qualified Dividends</label>
+              <div class="input-dollar"><span>$</span><input type="number" id="py-dividends" placeholder="0" min="0" /></div>
+            </div>
+            <div class="form-group">
+              <label>Long-Term Capital Gains</label>
+              <div class="input-dollar"><span>$</span><input type="number" id="py-ltcg" placeholder="0" min="0" /></div>
+            </div>
+            <div class="form-group">
+              <label>Short-Term Capital Gains</label>
+              <div class="input-dollar"><span>$</span><input type="number" id="py-stcg" placeholder="0" min="0" /></div>
+            </div>
+            <div class="form-group">
+              <label>Net Rental Income (Schedule E)</label>
+              <div class="input-dollar"><span>$</span><input type="number" id="py-rental" placeholder="0" min="0" /></div>
+            </div>
+            <div class="form-group">
+              <label>Net Self-Employment (Schedule C)</label>
+              <div class="input-dollar"><span>$</span><input type="number" id="py-self-employment" placeholder="0" min="0" /></div>
+            </div>
+            <div class="form-group">
+              <label>SEP / SIMPLE Contributions</label>
+              <div class="input-dollar"><span>$</span><input type="number" id="py-sep" placeholder="0" min="0" /></div>
+            </div>
+            <div class="form-group">
+              <label>Medical Expenses (Sch A, if itemized)</label>
+              <div class="input-dollar"><span>$</span><input type="number" id="py-medical" placeholder="0" min="0" /></div>
+            </div>
+            <div class="form-group">
+              <label>Property Tax (Sch A / SALT)</label>
+              <div class="input-dollar"><span>$</span><input type="number" id="py-property-tax" placeholder="0" min="0" /></div>
+            </div>
+            <div class="form-group">
+              <label>State Income Tax (Sch A / SALT)</label>
+              <div class="input-dollar"><span>$</span><input type="number" id="py-state-tax" placeholder="0" min="0" /></div>
+            </div>
+            <div class="form-group">
+              <label>Investment Interest (Sch A)</label>
+              <div class="input-dollar"><span>$</span><input type="number" id="py-inv-interest" placeholder="0" min="0" /></div>
+            </div>
+            <div class="form-group">
+              <label>Educator Expenses</label>
+              <div class="input-dollar"><span>$</span><input type="number" id="py-educator" placeholder="0" min="0" /></div>
+            </div>
+            <div class="form-group">
+              <label>Dependent Care FSA (Box 10)</label>
+              <div class="input-dollar"><span>$</span><input type="number" id="py-dcfsa" placeholder="0" min="0" /></div>
+            </div>
+            <div class="form-group">
+              <label>Prior-Year State Refund (taxable, Sch 1)</label>
+              <div class="input-dollar"><span>$</span><input type="number" id="py-state-refund-taxable" placeholder="0" min="0" /></div>
+              <span class="hint">If you itemized last year, part may be taxable this year</span>
+            </div>
+
+            <div class="form-group full-width manual-section-label">OBBB (2025+) <span class="optional">if applicable</span></div>
+            <div class="form-group">
+              <label>Qualified Tips Deducted</label>
+              <div class="input-dollar"><span>$</span><input type="number" id="py-tips" placeholder="0" min="0" /></div>
+            </div>
+            <div class="form-group">
+              <label>Qualified Overtime Deducted</label>
+              <div class="input-dollar"><span>$</span><input type="number" id="py-overtime" placeholder="0" min="0" /></div>
+            </div>
+            <div class="form-group">
+              <label>Car Loan Interest Deducted</label>
+              <div class="input-dollar"><span>$</span><input type="number" id="py-auto-loan" placeholder="0" min="0" /></div>
             </div>
           </div>
           <div style="margin-top:20px;display:flex;gap:12px;justify-content:flex-end">

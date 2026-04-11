@@ -737,6 +737,20 @@ body {
   max-height: 90vh;
   overflow-y: auto;
 }
+#manual-prior-modal .modal-box {
+  max-width: 920px;
+}
+.manual-section-label {
+  grid-column: 1 / -1;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--primary);
+  padding-top: 8px;
+  border-top: 1px solid var(--gray-100);
+  margin-top: 4px;
+}
 .modal-header {
   display: flex;
   align-items: center;
@@ -910,6 +924,71 @@ body {
   line-height: 1.5;
 }
 .pyc-missed-icon { font-size: 1.1rem; flex-shrink: 0; margin-top: 1px; }
+
+/* ---- FILING PROVISIONS (from prior return) ---- */
+.pyc-provisions-wrap {
+  margin-top: 24px;
+  border-top: 1px solid var(--gray-100);
+  padding-top: 20px;
+}
+.pyc-provisions-title {
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--gray-900);
+  margin-bottom: 6px;
+}
+.pyc-provisions-sub {
+  font-size: 0.8rem;
+  color: var(--gray-500);
+  margin-bottom: 18px;
+}
+.pyc-prov-cat {
+  margin-bottom: 18px;
+}
+.pyc-prov-cat-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--primary-dark);
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--primary-light);
+}
+.pyc-prov-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.pyc-prov-item {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  background: var(--gray-50);
+  border: 1px solid var(--gray-100);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--gray-700);
+}
+.pyc-prov-item strong {
+  display: block;
+  color: var(--gray-900);
+  font-size: 0.84rem;
+  margin-bottom: 4px;
+}
+.pyc-prov-ref {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--primary);
+  background: var(--primary-light);
+  padding: 2px 8px;
+  border-radius: 100px;
+}
 
 /* ---- OBBB BANNER ---- */
 .obbb-banner {
