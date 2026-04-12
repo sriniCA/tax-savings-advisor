@@ -518,7 +518,7 @@ function calcSaversCredit(retirementContribs, agi, filingStatus, taxYear) {
 }
 
 /* ---- MAIN CALCULATION ---- */
-function calculateTaxes() {
+function calculateTaxes(opts) {
   const filingStatus  = radio('filingStatus') || 'single';
   const taxYear       = parseInt(document.getElementById('taxYear').value) || 2024;
   const taxpayerAge   = n('taxpayerAge');
@@ -715,6 +715,22 @@ function calculateTaxes() {
   const netTaxDue   = totalTax - federalWithheld;
   const marginalRate = getMarginalRate(taxableOrdinary, brackets);
   const effectiveRate = agi > 0 ? totalTax / agi : 0;
+
+  window.__lastTaxCompute = {
+    agi, totalTax, netTaxDue, marginalRate, effectiveRate, taxYear, filingStatus,
+    w2Income, spouseW2, k401Contrib, spouseK401Contrib, traditionalIRA, sepIRA, hsaContrib,
+    childcareExpenses, tuitionPaid, numChildrenUnder17, numChildrenCollege,
+    mortgageInterest, propertyTax, stateTaxPaid, charitableCash, charitableNonCash,
+    dividends, ltcg, stcg, tipIncome, overtimePay, autoLoanInterest,
+    studentLoanInterest, selfEmploymentIncome: seGross, seNet, rentalNet,
+    federalWithheld, childTaxCredit, totalCredits, grossTax, ordinaryTax, seTax,
+    totalOBBBDeductions, useItemized, standardDeduction, itemizedTotal
+  };
+
+  if (opts && opts.previewOnly) {
+    updateLiveYoYBar();
+    return;
+  }
 
   // =====================================================
   //  RENDER RESULTS
@@ -1518,15 +1534,16 @@ function applyPriorYearData(data) {
 
   // Set filing status
   const fsMap = { single: 0, mfj: 1, mfs: 2, hoh: 3 };
-  const fsIdx = fsMap[data.filingStatus] ?? 0;
+  const fsIdx = fsMap[py.filingStatus] ?? 0;
   const radios = document.querySelectorAll('input[name="filingStatus"]');
   if (radios[fsIdx]) {
     radios[fsIdx].checked = true;
     radios.forEach(r => r.closest('.radio-card')?.classList.toggle('selected', r.checked));
   }
 
-  // Show analysis bar
-  showPriorAnalysisBar(data);
+  // Show analysis bar + mapping table + live compare
+  showPriorAnalysisBar(py);
+  renderPriorMappingPanel();
 
   // Close modals
   document.getElementById('prior-year-modal')?.classList.add('hidden');
@@ -1725,6 +1742,201 @@ function buildPriorYearFilingProvisions(py, marginalRate, selectedTaxYear) {
 }
 
 /* ---- YEAR-OVER-YEAR COMPARISON (called inside calculateTaxes) ---- */
+/** Live strip: prior vs. current form (uses last tax math run) */
+function updateLiveYoYBar() {
+  const body = document.getElementById('live-yoy-body');
+  const card = document.getElementById('live-yoy-compare');
+  if (!body || !priorYearData) return;
+  const py = priorYearData;
+  const c = window.__lastTaxCompute;
+  if (!c) {
+    body.innerHTML = '<p class="live-yoy-placeholder">Enter income and deductions, then use <strong>Refresh tax estimate</strong> below.</p>';
+    card?.classList.remove('hidden');
+    return;
+  }
+  const r = (label, pv, cv) =>
+    `<div class="live-yoy-row"><span class="live-yoy-label">${label}</span><span class="live-yoy-prior">${fmt(pv)}</span><span class="live-yoy-arr">→</span><span class="live-yoy-cur">${fmt(cv)}</span></div>`;
+  const priorEff = py.agi > 0 ? ((py.totalTax / py.agi) * 100).toFixed(1) + '%' : '—';
+  const curEff = c.agi > 0 ? ((c.totalTax / c.agi) * 100).toFixed(1) + '%' : '—';
+  const curMr = (c.marginalRate * 100).toFixed(1) + '%';
+  body.innerHTML = `
+    <div class="live-yoy-rows">
+      ${r('W-2 wages (Box 1)', py.wages, c.w2Income + c.spouseW2)}
+      ${r('401(k) deferrals', py.k401, c.k401Contrib + c.spouseK401Contrib)}
+      ${r('HSA', py.hsa, c.hsaContrib)}
+      ${r('AGI', py.agi, c.agi)}
+      ${r('Federal tax (before withholding)', py.totalTax, c.totalTax)}
+      <div class="live-yoy-row"><span class="live-yoy-label">Effective tax rate</span><span class="live-yoy-prior">${priorEff}</span><span class="live-yoy-arr">→</span><span class="live-yoy-cur">${curEff}</span></div>
+      <div class="live-yoy-row"><span class="live-yoy-label">Marginal rate (ordinary, bracket)</span><span class="live-yoy-prior">—</span><span class="live-yoy-arr">→</span><span class="live-yoy-cur">${curMr}</span></div>
+    </div>
+  `;
+  card?.classList.remove('hidden');
+}
+
+function buildPriorMappingRows(py, selYear) {
+  const lim = (TAX_DATA[selYear] || TAX_DATA[2025]).limits;
+  const k401Max = lim.k401.under50;
+  const hsaMax = lim.hsa.family;
+  const rows = [];
+  const push = (priorLabel, amt, step, field, cond) => {
+    rows.push({
+      priorLabel,
+      priorAmt: fmt(amt),
+      step,
+      field,
+      conditions: cond
+    });
+  };
+  if (py.wages > 0) {
+    push('Wages, salaries, tips (W-2 Box 1)', py.wages, 'Step 2 · Income', 'W-2 Wages (Box 1) & spouse W-2',
+      `Same boxes on ${selYear} W-2s. Must match employer filings. If multiple jobs, sum all Box 1 amounts.`);
+  }
+  if (py.k401 > 0) {
+    push('401(k) / 403(b) deferrals (W-2 Box 12 code D)', py.k401, 'Step 5 · Retirement', '401(k) / 403(b) Contributions',
+      `${selYear} employee deferral limit $${k401Max.toLocaleString()} (higher if age 50+). Must be through employer plan; excess may be taxable.`);
+  }
+  if (py.iraDeduction > 0) {
+    push('Traditional IRA deduction', py.iraDeduction, 'Step 5 · Retirement', 'Traditional IRA Contributions',
+      'Deduction phases out if you or spouse covered by workplace plan and income above IRS thresholds. Roth IRA is not deductible.');
+  }
+  if (py.sepSimple > 0) {
+    push('SEP / SIMPLE / self-employed retirement', py.sepSimple, 'Step 5 · Retirement', 'SEP-IRA / Solo 401(k)',
+      'Generally limited to ~25% of net self-employment income up to annual SEP cap. Must be self-employment earnings.');
+  }
+  if (py.hsa > 0) {
+    push('HSA contributions (Form 8889)', py.hsa, 'Step 6 · Health', 'HSA Contributions',
+      `Must be enrolled in qualified HDHP; ${selYear} limits apply (family up to $${hsaMax.toLocaleString()}). Cannot double-count with Medicaid/traditional FSA improperly.`);
+  }
+  if (py.mortgageInterest > 0) {
+    push('Home mortgage interest (1098)', py.mortgageInterest, 'Step 4 · Home', 'Mortgage Interest Paid',
+      'Loan must be acquisition or improvement debt; generally limited to $750k principal. Refinance rules apply.');
+  }
+  if ((py.propertyTax || 0) + (py.stateIncomeTax || 0) > 0) {
+    push('State/local taxes (SALT)', (py.propertyTax || 0) + (py.stateIncomeTax || 0), 'Step 4 · Home', 'Property Taxes & State Income Taxes',
+      `Combined SALT capped at $10,000 for federal itemizing. Compare to standard deduction for ${selYear}.`);
+  }
+  if (py.charitableDeduct > 0) {
+    push('Charitable contributions', py.charitableDeduct, 'Step 7 · Other', 'Charitable Donations',
+      'Cash gifts need acknowledgment for $250+; non-cash over $500 needs Form 8283 details. Must itemize to deduct.');
+  }
+  if (py.studentLoan > 0) {
+    push('Student loan interest', py.studentLoan, 'Step 6 · Health', 'Student Loan Interest Paid',
+      `Up to $${lim.studentLoanInterest} deduction; phases out above MAGI ($80k single / $165k MFJ in many years).`);
+  }
+  if (py.childcareExpenses > 0) {
+    push('Child / dependent care', py.childcareExpenses, 'Step 3 · Dependents', 'Child/Dependent Care Expenses',
+      'Qualifying person rules; provider SSN/EIN on Form 2441. Credit % depends on AGI. DCFSA reduces eligible expenses.');
+  }
+  if (py.educationCredit > 0 || py.numCollege > 0) {
+    push('Education credits (8863) / tuition', py.educationCredit || 0, 'Step 3 · Dependents', 'College Tuition & Fees',
+      'AOTC: first 4 years per student, 1098-T required. LLC has different rules. Income phase-outs apply.');
+  }
+  if (py.ctc > 0 || py.numUnder17 > 0) {
+    push('Child Tax Credit', py.ctc || 0, 'Step 3 · Dependents', 'Children Under 17',
+      'Child must have SSN valid for employment. Credit phases out at higher incomes ($400k MFJ / $200k others).');
+  }
+  if (py.dividends > 0 || py.ltcg > 0) {
+    push('Dividends / capital gains', py.dividends + py.ltcg, 'Step 2 · Income', 'Qualified Dividends & Long-Term Capital Gains',
+      'Qualified dividends and long-term gains taxed at 0/15/20% brackets — not ordinary rates. Hold assets >1 year for LTCG.');
+  }
+  if (py.selfEmployed > 0) {
+    push('Self-employment (Schedule C)', py.selfEmployed, 'Step 2 · Income', 'Self-Employment / 1099 Income',
+      'Net profit after expenses; SE tax on Schedule SE. Quarterly estimates if tax due is high enough.');
+  }
+  if (py.rentalNet > 0) {
+    push('Rental income (Schedule E)', py.rentalNet, 'Step 2 · Income', 'Rental Income',
+      'Passive activity rules; depreciation recapture on sale. Material participation affects loss deductibility.');
+  }
+  if (py.eitc > 0) {
+    push('Earned Income Credit', py.eitc, 'Step 1–3', 'Earned income & dependents',
+      `Investment income must be below limit; EITC has earned income ranges. PATH Act may delay refund until mid-February.`);
+  }
+  if (selYear >= 2025 && ((py.obbbTips || 0) + (py.obbbOvertime || 0) + (py.obbbAutoLoan || 0) > 0)) {
+    push('OBBB: tips / overtime / car loan (Schedule 1-A)', (py.obbbTips || 0) + (py.obbbOvertime || 0) + (py.obbbAutoLoan || 0), 'Step 2 & 4', 'Tips, Overtime, Car Loan Interest',
+      '2025–2028: file Schedule 1-A. Tips/overtime phase out at higher MAGI; car loan requires US-assembled vehicle & personal use.');
+  }
+  if (rows.length === 0) {
+    push('(No detailed amounts detected)', 0, 'All steps', 'Fill the form to mirror last year',
+      'Enter your best estimates from your prior Form 1040 and schedules.');
+  }
+  return rows;
+}
+
+function renderPriorMappingPanel() {
+  const wrap = document.getElementById('prior-mapping-wrap');
+  const panel = document.getElementById('prior-mapping-panel');
+  if (!priorYearData || !panel) {
+    wrap?.classList.add('hidden');
+    return;
+  }
+  const selYear = parseInt(document.getElementById('taxYear')?.value, 10) || 2025;
+  const rows = buildPriorMappingRows(priorYearData, selYear);
+  panel.innerHTML = `
+    <div class="pmap-head">
+      <div class="pmap-title">Post last year’s numbers into this year’s return</div>
+      <p class="pmap-sub">Each row shows <strong>where to enter</strong> the same type of item in this calculator, and <strong>conditions</strong> that must be met for ${selYear}.</p>
+    </div>
+    <div class="pmap-table-wrap">
+      <table class="pmap-table">
+        <thead><tr><th>From ${priorYearData.taxYear} return</th><th>Enter in this app</th><th>Conditions for ${selYear}</th></tr></thead>
+        <tbody>
+          ${rows.map(r => `
+            <tr>
+              <td><span class="pmap-pl">${r.priorLabel}</span><br><span class="pmap-amt">${r.priorAmt}</span></td>
+              <td><span class="pmap-step">${r.step}</span><br><span class="pmap-field">${r.field}</span></td>
+              <td class="pmap-cond">${r.conditions}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+    <div class="pmap-foot">
+      <button type="button" class="btn-primary btn-sm" onclick="calculateTaxes({ previewOnly: true })">↻ Refresh live comparison &amp; tax estimate</button>
+      <span class="pmap-foot-hint">Uses the same tax engine as <strong>Analyze</strong> — your form stays open.</span>
+    </div>
+  `;
+  wrap.classList.remove('hidden');
+  document.getElementById('live-yoy-compare')?.classList.remove('hidden');
+  try {
+    calculateTaxes({ previewOnly: true });
+  } catch (e) {
+    console.warn('Preview tax:', e);
+  }
+}
+
+/** Side-by-side line items: prior return vs. last full calculation */
+function buildPriorVsCurrentLineTable(py, selYear) {
+  const c = window.__lastTaxCompute;
+  if (!c) return '';
+  const row = (label, p, cur) =>
+    `<tr><td>${label}</td><td>${fmt(p)}</td><td>${fmt(cur)}</td></tr>`;
+  return `
+    <div class="pyc-line-detail">
+      <div class="pyc-line-detail-title">Line-by-line: prior year vs. current entries (this analysis)</div>
+      <table class="pyc-line-table">
+        <thead><tr><th>Item</th><th>${py.taxYear} prior</th><th>${selYear} (your entries now)</th></tr></thead>
+        <tbody>
+          ${row('W-2 wages (Box 1)', py.wages, c.w2Income + c.spouseW2)}
+          ${row('401(k) deferrals', py.k401, c.k401Contrib + c.spouseK401Contrib)}
+          ${row('Traditional IRA + SEP', (py.iraDeduction || 0) + (py.sepSimple || 0), c.traditionalIRA + c.sepIRA)}
+          ${row('HSA contributions', py.hsa, c.hsaContrib)}
+          ${row('Mortgage interest', py.mortgageInterest, c.mortgageInterest)}
+          ${row('Charitable (cash + non-cash)', (py.charitableDeduct || 0), c.charitableCash + c.charitableNonCash)}
+          ${row('Qualified dividends', py.dividends, c.dividends)}
+          ${row('Long-term capital gains', py.ltcg, c.ltcg)}
+          ${row('Student loan interest', py.studentLoan, c.studentLoanInterest)}
+          ${row('Child / dependent care paid', py.childcareExpenses, c.childcareExpenses)}
+          ${row('Tuition (for education credits)', py.educationCredit || 0, c.tuitionPaid)}
+          ${row('OBBB: tips + overtime + auto (if any)', (py.obbbTips || 0) + (py.obbbOvertime || 0) + (py.obbbAutoLoan || 0), (c.tipIncome || 0) + (c.overtimePay || 0) + (c.autoLoanInterest || 0))}
+          <tr class="pyc-line-highlight"><td><strong>Adjusted gross income (AGI)</strong></td><td><strong>${fmt(py.agi)}</strong></td><td><strong>${fmt(c.agi)}</strong></td></tr>
+          <tr class="pyc-line-highlight"><td><strong>Federal income tax (before withholding)</strong></td><td><strong>${fmt(py.totalTax)}</strong></td><td><strong>${fmt(c.totalTax)}</strong></td></tr>
+        </tbody>
+      </table>
+      <p class="pyc-line-note">“Current” column reflects the numbers in the form when you clicked <strong>Analyze</strong>. Use the live panel above the form to compare while editing.</p>
+    </div>
+  `;
+}
+
 function renderPriorYearComparison(currentAGI, currentTax, currentRefund, marginalRate, selectedTaxYear) {
   const panel = document.getElementById('py-comparison-panel');
   if (!panel || !priorYearData) { if (panel) panel.classList.add('hidden'); return; }
@@ -1837,6 +2049,7 @@ function renderPriorYearComparison(currentAGI, currentTax, currentRefund, margin
           <div class="pyc-row"><span>Effective Rate</span><strong>${currentAGI > 0 ? ((currentTax/currentAGI)*100).toFixed(1) : '—'}%</strong></div>
         </div>
       </div>
+      ${buildPriorVsCurrentLineTable(py, selectedTaxYear)}
       ${provisionsHTML}
       ${missed.length > 0 ? `
         <div class="pyc-missed-section">
@@ -1873,4 +2086,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Init drag-and-drop on upload zone
   initDropZone();
+
+  function debounce(fn, wait) {
+    let t;
+    return (...args) => {
+      clearTimeout(t);
+      t = setTimeout(() => fn.apply(null, args), wait);
+    };
+  }
+  const liveRefresh = debounce(() => {
+    if (priorYearData) {
+      try {
+        calculateTaxes({ previewOnly: true });
+      } catch (e) {
+        console.warn('Live tax preview:', e);
+      }
+    }
+  }, 450);
+  document.getElementById('form-section')?.addEventListener('input', liveRefresh);
+  document.getElementById('form-section')?.addEventListener('change', liveRefresh);
+  document.getElementById('taxYear')?.addEventListener('change', () => {
+    if (priorYearData) renderPriorMappingPanel();
+  });
 });
