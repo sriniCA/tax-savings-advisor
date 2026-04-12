@@ -64,6 +64,12 @@ body {
 .logo-icon { font-size: 2.2rem; line-height: 1; }
 .logo h1 { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.3px; }
 .logo p { font-size: 0.8rem; opacity: 0.85; margin-top: 2px; }
+.header-badges {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
 .header-badge {
   background: rgba(255,255,255,0.2);
   border: 1px solid rgba(255,255,255,0.35);
@@ -73,6 +79,25 @@ body {
   padding: 6px 14px;
   border-radius: 100px;
   white-space: nowrap;
+}
+.header-save-hint {
+  font-size: 0.68rem;
+  color: rgba(255,255,255,0.85);
+  font-weight: 500;
+}
+.header-clear-btn {
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.35);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 100px;
+  cursor: pointer;
+  font-family: var(--font);
+}
+.header-clear-btn:hover {
+  background: rgba(255,255,255,0.25);
 }
 
 /* ---- LAYOUT ---- */
@@ -1167,6 +1192,7 @@ body {
   .deduction-comparison { grid-template-columns: 1fr; }
   .form-card { padding: 20px; }
   .header-inner { flex-direction: column; align-items: flex-start; }
+  .header-badges { align-items: flex-start; }
   .header-badge { display: none; }
   .progress-steps { gap: 0; }
   .upload-banner { flex-direction: column; align-items: flex-start; }

@@ -347,7 +347,7 @@ let currentStep = 1;
 let highestStep  = 1;   // furthest step ever reached — keeps tabs green on back-navigation
 const totalSteps = 7;
 
-function goToStep(step) {
+function goToStep(step, opts) {
   document.getElementById(`section-${currentStep}`)?.classList.remove('active-section');
   if (step > highestStep) highestStep = step;
 
@@ -363,15 +363,113 @@ function goToStep(step) {
   const next = document.getElementById(`section-${step}`);
   if (next) {
     next.classList.add('active-section');
-    next.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (!opts || !opts.noScroll) {
+      next.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+  scheduleSaveFormDraft();
+}
+
+/* ---- LOCAL DRAFT (current-year form only; stays in this browser) ---- */
+const FORM_DRAFT_KEY = 'tax-savings-app-form-draft-v1';
+let saveDraftTimer = null;
+
+function collectFormDraft() {
+  const section = document.getElementById('form-section');
+  if (!section) return null;
+  const state = {
+    v: 1,
+    t: Date.now(),
+    currentStep,
+    highestStep,
+    radios: {},
+    selects: {},
+    inputs: {}
+  };
+  section.querySelectorAll('input[type="radio"]').forEach((r) => {
+    if (r.name && r.checked) state.radios[r.name] = r.value;
+  });
+  section.querySelectorAll('select[id]').forEach((sel) => {
+    state.selects[sel.id] = sel.value;
+  });
+  section.querySelectorAll('input[id]').forEach((inp) => {
+    if (inp.type === 'radio' || inp.type === 'file') return;
+    state.inputs[inp.id] = inp.value;
+  });
+  return state;
+}
+
+function applyFormDraft(state) {
+  if (!state || state.v !== 1) return false;
+  const section = document.getElementById('form-section');
+  if (!section) return false;
+
+  Object.entries(state.selects || {}).forEach(([id, val]) => {
+    const el = document.getElementById(id);
+    if (el) el.value = val;
+  });
+  Object.entries(state.inputs || {}).forEach(([id, val]) => {
+    const el = document.getElementById(id);
+    if (el) el.value = val != null ? String(val) : '';
+  });
+  Object.entries(state.radios || {}).forEach(([name, value]) => {
+    const r = section.querySelector(`input[type="radio"][name="${name}"][value="${value}"]`);
+    if (r) {
+      r.checked = true;
+      r.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  });
+  document.querySelectorAll('#form-section .radio-card input[type="radio"]').forEach((inp) => {
+    inp.closest('.radio-card')?.classList.toggle('selected', inp.checked);
+  });
+
+  if (typeof state.highestStep === 'number' && state.highestStep >= 1 && state.highestStep <= totalSteps) {
+    highestStep = state.highestStep;
+  }
+  if (typeof state.currentStep === 'number' && state.currentStep >= 1 && state.currentStep <= totalSteps) {
+    goToStep(state.currentStep, { noScroll: true });
+  } else {
+    scheduleSaveFormDraft();
+  }
+  updateSeniorBanner();
+  const st = document.getElementById('form-save-status');
+  if (st) st.textContent = '✓ Restored your last session';
+  return true;
+}
+
+function saveFormDraft() {
+  try {
+    const draft = collectFormDraft();
+    if (draft) localStorage.setItem(FORM_DRAFT_KEY, JSON.stringify(draft));
+    const st = document.getElementById('form-save-status');
+    if (st) {
+      const d = new Date();
+      st.textContent = `✓ Saved ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    }
+  } catch (e) {
+    console.warn('Form draft save failed', e);
+  }
+}
+
+function scheduleSaveFormDraft() {
+  clearTimeout(saveDraftTimer);
+  saveDraftTimer = setTimeout(saveFormDraft, 450);
+}
+
+function loadFormDraft() {
+  try {
+    const raw = localStorage.getItem(FORM_DRAFT_KEY);
+    if (!raw) return;
+    applyFormDraft(JSON.parse(raw));
+  } catch (e) {
+    console.warn('Form draft load failed', e);
   }
 }
 
 function editForm() {
-  highestStep = 1;
   document.getElementById('results-section').classList.add('hidden');
   document.getElementById('form-section').style.display = '';
-  goToStep(1);
+  goToStep(Math.min(Math.max(currentStep, 1), totalSteps));
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -1548,6 +1646,8 @@ function applyPriorYearData(data) {
   // Close modals
   document.getElementById('prior-year-modal')?.classList.add('hidden');
   document.getElementById('manual-prior-modal')?.classList.add('hidden');
+
+  scheduleSaveFormDraft();
 }
 
 /* ---- MANUAL ENTRY HANDLER ---- */
@@ -2103,9 +2203,24 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
   }, 450);
-  document.getElementById('form-section')?.addEventListener('input', liveRefresh);
-  document.getElementById('form-section')?.addEventListener('change', liveRefresh);
+  const formSec = document.getElementById('form-section');
+  formSec?.addEventListener('input', liveRefresh);
+  formSec?.addEventListener('change', liveRefresh);
+  formSec?.addEventListener('input', scheduleSaveFormDraft);
+  formSec?.addEventListener('change', scheduleSaveFormDraft);
+
   document.getElementById('taxYear')?.addEventListener('change', () => {
     if (priorYearData) renderPriorMappingPanel();
   });
+
+  document.getElementById('clear-form-draft')?.addEventListener('click', () => {
+    if (confirm('Remove all saved calculator entries from this browser? You can start fresh.')) {
+      try {
+        localStorage.removeItem(FORM_DRAFT_KEY);
+      } catch (e) { /* ignore */ }
+      location.reload();
+    }
+  });
+
+  loadFormDraft();
 });
